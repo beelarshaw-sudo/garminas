@@ -36,6 +36,15 @@ model User {
   isProfileApproved   Boolean  @default(false)
   isHidden            Boolean  @default(false)
   isInactivityPaused  Boolean  @default(false)
+  // Account type: INDIVIDUAL (searching for self) or PARENT (searching for child)
+  accountType         String   @default("INDIVIDUAL") // INDIVIDUAL | PARENT
+  // Subscription (5000 PKR / month)
+  subscriptionStatus  String   @default("NONE") // NONE | PENDING | ACTIVE | EXPIRED | CANCELLED
+  subscriptionPlan    String   @default("MONTHLY") // MONTHLY
+  subscriptionAmount  Int      @default(5000) // PKR
+  subscriptionStartsAt DateTime?
+  subscriptionExpiresAt DateTime?
+  subscriptionPaymentRef String? // receipt filename or transaction ID
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -50,6 +59,8 @@ model User {
   blocksReceived      Block[]       @relation("Blocked")
   privacyConsents     PrivacyConsent[]
   sessionsList        UserSession[]
+  documents           VerificationDocument[]
+  payments            Payment[]
 }
 
 model Session {
@@ -81,6 +92,10 @@ model Profile {
   id                 String   @id @default(cuid())
   userId             String   @unique
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // If this profile was created by a parent, store the parent's user ID
+  createdByParentId  String?
+  parentRelationship String? // "father", "mother", "guardian", etc.
 
   // Personal
   fullName           String?
@@ -196,15 +211,40 @@ model VerificationRecord {
 
 model VerificationDocument {
   id                 String   @id @default(cuid())
-  verificationId     String
-  verification       VerificationRecord @relation(fields: [verificationId], references: [id], onDelete: Cascade)
-  type               String   // id_card | community_reference | selfie
-  filePath           String   // private object storage key
+  verificationId     String?
+  verification       VerificationRecord? @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  // Direct link to the user who uploaded (for registration documents)
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               String   // id_card_front | id_card_back | electricity_bill | community_reference | selfie
+  filePath           String   // local path or private object storage key
   mimeType           String
   uploadedAt         DateTime @default(now())
   expiresAt          DateTime?
   deletedAt          DateTime?
   reviewedBy         String?
+  reviewStatus       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewNote         String?
+}
+
+// ─────────────────────────────────────────────
+//  Payments / Subscription
+// ─────────────────────────────────────────────
+
+model Payment {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount             Int      // PKR
+  plan               String   @default("MONTHLY")
+  method             String   @default("BANK_TRANSFER") // BANK_TRANSFER | EASYPAISA | JAZZCASH | OTHER
+  receiptPath        String?  // uploaded receipt image
+  transactionRef     String?  // user-entered transaction ID
+  status             String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 // ─────────────────────────────────────────────

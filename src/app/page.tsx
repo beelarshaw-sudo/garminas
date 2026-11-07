@@ -65,6 +65,10 @@ const PrivacyView = dynamic(
   () => import("@/components/garminas/views/PrivacyView"),
   { ssr: false, loading: () => <ViewLoader /> }
 );
+const SubscriptionView = dynamic(
+  () => import("@/components/garminas/views/SubscriptionView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
 const NotificationsView = dynamic(
   () => import("@/components/garminas/views/NotificationsView"),
   { ssr: false, loading: () => <ViewLoader /> }
@@ -113,6 +117,7 @@ const MEMBER_ONLY_VIEWS = [
   "family",
   "verify",
   "privacy",
+  "subscription",
   "notifications",
   "safety",
 ] as const;
@@ -203,6 +208,8 @@ export default function Page() {
         return <VerifyView />;
       case "privacy":
         return <PrivacyView />;
+      case "subscription":
+        return <SubscriptionView />;
       case "notifications":
         return <NotificationsView />;
       case "safety":

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Bell,
+  CreditCard,
+  CheckCircle2,
+  Clock,
   Heart,
   HelpCircle,
   LifeBuoy,
@@ -48,6 +51,32 @@ interface Counts {
   matches: number;
 }
 
+interface SubscriptionInfo {
+  subscriptionStatus: string; // NONE | PENDING | ACTIVE | EXPIRED | CANCELLED
+  subscriptionPlan: string;
+  subscriptionAmount: number;
+  subscriptionStartsAt: string | null;
+  subscriptionExpiresAt: string | null;
+  accountType: string;
+}
+
+interface SubscriptionStatusResponse {
+  subscription: SubscriptionInfo;
+}
+
+function formatExpiry(value: string | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 export default function DashboardView() {
   const setView = useNav((s) => s.setView);
   const refresh = useSession((s) => s.refresh);
@@ -55,14 +84,17 @@ export default function DashboardView() {
 
   const [counts, setCounts] = useState<Counts>({ proposals: 0, received: 0, messages: 0, matches: 0 });
   const [loadingCounts, setLoadingCounts] = useState(true);
+  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
+  const [loadingSub, setLoadingSub] = useState(true);
 
   useEffect(() => {
     refresh();
     (async () => {
       try {
-        const [pRes, nRes] = await Promise.all([
+        const [pRes, nRes, sRes] = await Promise.all([
           fetch("/api/proposals", { cache: "no-store" }),
           fetch("/api/notifications", { cache: "no-store" }),
+          fetch("/api/subscription/status", { cache: "no-store" }),
         ]);
         const next: Counts = { proposals: 0, received: 0, messages: 0, matches: 0 };
         if (pRes.ok) {
@@ -74,12 +106,17 @@ export default function DashboardView() {
           const nd = await nRes.json();
           next.messages = nd?.unread ?? 0;
         }
+        if (sRes.ok) {
+          const sd = (await sRes.json()) as SubscriptionStatusResponse;
+          setSub(sd?.subscription ?? null);
+        }
         next.matches = 6; // demo matches always available
         setCounts(next);
       } catch {
         /* ignore */
       } finally {
         setLoadingCounts(false);
+        setLoadingSub(false);
       }
     })();
   }, [refresh]);
@@ -182,6 +219,23 @@ export default function DashboardView() {
               <Button onClick={() => setView("verify")} className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] shrink-0">
                 <ShieldCheck className="h-4 w-4" /> Complete verification
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Subscription status card */}
+        {sub && (
+          <SubscriptionStatusCard
+            status={sub.subscriptionStatus}
+            expiresAt={sub.subscriptionExpiresAt}
+            onActivate={() => setView("subscription")}
+          />
+        )}
+        {loadingSub && !sub && (
+          <Card className="mb-8 bg-white border-[#D6B77A]/30 shadow-lux">
+            <CardContent className="p-6 flex items-center gap-3 text-muted-foreground">
+              <Clock className="h-5 w-5 animate-spin text-[#D6B77A]" />
+              <span className="text-sm">Loading subscription status…</span>
             </CardContent>
           </Card>
         )}
@@ -345,5 +399,96 @@ function QuickLink({
         </CardContent>
       </Card>
     </button>
+  );
+}
+
+function SubscriptionStatusCard({
+  status,
+  expiresAt,
+  onActivate,
+}: {
+  status: string;
+  expiresAt: string | null;
+  onActivate: () => void;
+}) {
+  const isActive = status === "ACTIVE";
+  const needsActivation = status === "NONE" || status === "EXPIRED" || status === "CANCELLED";
+  const isPending = status === "PENDING";
+
+  return (
+    <Card
+      className={`mb-8 bg-white shadow-lux ${
+        isActive
+          ? "border-emerald-500/40"
+          : needsActivation
+            ? "border-[#C88F91]/40"
+            : "border-[#D6B77A]/40"
+      }`}
+    >
+      <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-1 ${
+              isActive
+                ? "bg-emerald-500/10 ring-emerald-500/30"
+                : needsActivation
+                  ? "bg-[#C88F91]/15 ring-[#C88F91]/30"
+                  : "bg-[#D6B77A]/15 ring-[#D6B77A]/30"
+            }`}
+          >
+            {isActive ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            ) : isPending ? (
+              <Clock className="h-5 w-5 text-[#D6B77A]" />
+            ) : (
+              <CreditCard className="h-5 w-5 text-[#C88F91]" />
+            )}
+          </div>
+          <div>
+            {isActive ? (
+              <>
+                <p className="font-serif text-lg text-foreground">
+                  Subscription Active — expires on {formatExpiry(expiresAt)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You can discover members, send proposals, and message verified
+                  members. Renew before the expiry date to keep your access
+                  uninterrupted.
+                </p>
+              </>
+            ) : isPending ? (
+              <>
+                <p className="font-serif text-lg text-foreground">
+                  Payment under verification
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Your recent payment is being reviewed by an administrator.
+                  Your subscription will be activated once it is verified.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-serif text-lg text-foreground">
+                  Your subscription is not active
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Pay 5,000 PKR to contact members, send proposals, and unlock
+                  private messaging.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+        {!isActive && (
+          <Button
+            onClick={onActivate}
+            className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] shrink-0"
+          >
+            <CreditCard className="h-4 w-4" />
+            {isPending ? "View subscription" : "Activate Subscription"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

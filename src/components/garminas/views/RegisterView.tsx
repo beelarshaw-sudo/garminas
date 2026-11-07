@@ -1,29 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
+  Calendar,
   Check,
   CheckCircle2,
+  CreditCard,
   Globe2,
   Heart,
+  Home,
+  IdCard,
+  Info,
   Loader2,
   Lock,
   Mail,
+  MapPin,
   Phone,
   ShieldCheck,
   Sparkles,
+  Upload,
   User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -31,9 +47,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNav, useSession } from "@/lib/store";
-import { GARMINAS_DISTRICTS } from "@/lib/garminas";
+
+type AccountType = "INDIVIDUAL" | "PARENT" | "";
+type Gender = "Male" | "Female" | "Prefer not to say" | "";
+type DocType = "id_card_front" | "id_card_back" | "electricity_bill";
 
 interface RegisterResult {
   ok: boolean;
@@ -42,6 +61,13 @@ interface RegisterResult {
   message?: string;
   error?: string;
   issues?: { path: (string | number)[]; message: string }[];
+}
+
+interface UploadResponse {
+  ok?: boolean;
+  path?: string;
+  type?: string;
+  error?: string;
 }
 
 function checkStrength(p: string) {
@@ -54,11 +80,127 @@ function checkStrength(p: string) {
   };
 }
 
+const TOTAL_STEPS = 4;
+
+const STEP_LABELS = [
+  "Account Type",
+  "Personal Details",
+  "Security & Documents",
+  "Eligibility & Consent",
+];
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+interface DocUploadZoneProps {
+  label: string;
+  description: string;
+  icon: ReactNode;
+  uploading: boolean;
+  preview: string;
+  fileName: string;
+  done: boolean;
+  onFile: (file: File) => void;
+}
+
+function DocUploadZone({
+  label,
+  description,
+  icon,
+  uploading,
+  preview,
+  fileName,
+  done,
+  onFile,
+}: DocUploadZoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  function handleDrop(e: React.DragEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) onFile(f);
+  }
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        className="hidden"
+        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+          const f = e.target.files?.[0];
+          if (f) onFile(f);
+          e.target.value = "";
+        }}
+      />
+      <Label className="text-sm text-ivory/80 mb-1.5 block">{label}</Label>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        className={`flex w-full items-stretch gap-3 rounded-lg border-2 border-dashed px-4 py-4 text-left transition-colors ${
+          dragging
+            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+            : done
+              ? "border-[#D6B77A]/40 bg-white/[0.04]"
+              : "border-[#D6B77A]/40 bg-white/[0.03] hover:border-[#D6B77A] hover:bg-white/[0.06]"
+        }`}
+      >
+        {uploading ? (
+          <div className="flex items-center gap-3 py-1">
+            <Loader2 className="h-5 w-5 animate-spin text-[#D6B77A]" />
+            <div>
+              <p className="text-sm text-ivory">Uploading…</p>
+              <p className="text-xs text-ivory/50">Please wait a moment.</p>
+            </div>
+          </div>
+        ) : done ? (
+          <div className="flex w-full items-start gap-3">
+            {preview && (
+              <img
+                src={preview}
+                alt=""
+                className="h-12 w-12 rounded border border-[#D6B77A]/30 object-cover"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
+                <span className="truncate text-sm text-ivory">{fileName}</span>
+              </div>
+              <span className="text-xs text-ivory/50">
+                Uploaded — click to replace
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex w-full items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#D6B77A]/10 text-[#D6B77A]">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ivory">{label}</p>
+              <p className="text-xs text-ivory/50">{description}</p>
+            </div>
+          </div>
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function RegisterView() {
   const setView = useNav((s) => s.setView);
   const refresh = useSession((s) => s.refresh);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<{
     message: string;
@@ -66,24 +208,45 @@ export default function RegisterView() {
     emailToken: string;
   } | null>(null);
 
-  // Step 1 — Personal
+  // Step 1 — Account type
+  const [accountType, setAccountType] = useState<AccountType>("");
+  const [parentRelationship, setParentRelationship] = useState("");
+
+  // Step 2 — Personal details
   const [fullName, setFullName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
-  const [gender, setGender] = useState<"Male" | "Female" | "Prefer not to say" | "">("");
+  const [gender, setGender] = useState<Gender>("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [city, setCity] = useState("");
   const [connectionToGB, setConnectionToGB] = useState("");
 
-  // Step 2 — Security
+  // Step 3 — Security
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  // Step 3 — Eligibility & consent
+  // Step 3 — Document uploads
+  const [idCardFrontPath, setIdCardFrontPath] = useState("");
+  const [idCardBackPath, setIdCardBackPath] = useState("");
+  const [electricityBillPath, setElectricityBillPath] = useState("");
+  const [idCardFrontName, setIdCardFrontName] = useState("");
+  const [idCardBackName, setIdCardBackName] = useState("");
+  const [electricityBillName, setElectricityBillName] = useState("");
+  const [idCardFrontPreview, setIdCardFrontPreview] = useState("");
+  const [idCardBackPreview, setIdCardBackPreview] = useState("");
+  const [electricityBillPreview, setElectricityBillPreview] = useState("");
+  const [uploadingFront, setUploadingFront] = useState(false);
+  const [uploadingBack, setUploadingBack] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
+
+  // Step 4 — Eligibility, consent, subscription
   const [ageConfirmed, setAgeConfirmed] = useState(false);
-  const [ismailiEligibilityConfirmed, setIsmailiEligibilityConfirmed] = useState(false);
-  const [matrimonialOnlyConfirmed, setMatrimonialOnlyConfirmed] = useState(false);
+  const [ismailiEligibilityConfirmed, setIsmailiEligibilityConfirmed] =
+    useState(false);
+  const [matrimonialOnlyConfirmed, setMatrimonialOnlyConfirmed] =
+    useState(false);
   const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
+  const [subscriptionAccepted, setSubscriptionAccepted] = useState(false);
 
   const strength = useMemo(() => checkStrength(password), [password]);
   const strengthScore = Object.values(strength).filter(Boolean).length;
@@ -100,6 +263,11 @@ export default function RegisterView() {
             : "Excellent";
 
   const step1Valid =
+    accountType !== "" &&
+    (accountType === "INDIVIDUAL" ||
+      (accountType === "PARENT" && parentRelationship !== ""));
+
+  const step2Valid =
     fullName.trim().length >= 2 &&
     !!dateOfBirth &&
     !!gender &&
@@ -108,42 +276,135 @@ export default function RegisterView() {
     city.trim().length >= 2 &&
     connectionToGB.trim().length >= 2;
 
-  const step2Valid =
+  const step3Valid =
+    password.length > 0 &&
     strength.length &&
     strength.upper &&
     strength.lower &&
     strength.digit &&
     strength.special &&
-    password === confirm;
+    password === confirm &&
+    idCardFrontPath !== "" &&
+    idCardBackPath !== "" &&
+    electricityBillPath !== "";
 
-  const step3Valid =
+  const step4Valid =
     ageConfirmed &&
     ismailiEligibilityConfirmed &&
     matrimonialOnlyConfirmed &&
-    privacyPolicyAccepted;
+    privacyPolicyAccepted &&
+    subscriptionAccepted;
+
+  const progressPct = (step / TOTAL_STEPS) * 100;
+
+  // Reusable upload helper — posts multipart/form-data to /api/upload
+  // and returns the stored file path.
+  async function uploadFile(
+    file: File,
+    type: DocType,
+  ): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const data = (await res.json()) as UploadResponse;
+    if (!res.ok || !data.ok || !data.path) {
+      throw new Error(data.error ?? "Upload failed.");
+    }
+    return data.path;
+  }
+
+  function pickState(type: DocType) {
+    switch (type) {
+      case "id_card_front":
+        return {
+          setUploading: setUploadingFront,
+          setPath: setIdCardFrontPath,
+          setName: setIdCardFrontName,
+          setPreview: setIdCardFrontPreview,
+        };
+      case "id_card_back":
+        return {
+          setUploading: setUploadingBack,
+          setPath: setIdCardBackPath,
+          setName: setIdCardBackName,
+          setPreview: setIdCardBackPreview,
+        };
+      case "electricity_bill":
+        return {
+          setUploading: setUploadingBill,
+          setPath: setElectricityBillPath,
+          setName: setElectricityBillName,
+          setPreview: setElectricityBillPreview,
+        };
+    }
+  }
+
+  async function handleDocSelect(file: File, type: DocType) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("Please upload a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File is too large. Maximum size is 5 MB.");
+      return;
+    }
+    const { setUploading, setPath, setName, setPreview } = pickState(type);
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
+    try {
+      const path = await uploadFile(file, type);
+      setPath(path);
+      setName(file.name);
+      toast.success("Document uploaded.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed.");
+      setPath("");
+      setName("");
+      setPreview("");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function next() {
     if (step === 1 && !step1Valid) {
-      toast.error("Please complete all required personal fields.");
+      toast.error(
+        accountType === "PARENT" && !parentRelationship
+          ? "Please select your relationship to the person you're registering."
+          : "Please choose an account type to continue.",
+      );
       return;
     }
     if (step === 2 && !step2Valid) {
+      toast.error("Please complete all required personal fields.");
+      return;
+    }
+    if (step === 3 && !step3Valid) {
       if (password !== confirm) {
         toast.error("Passwords do not match.");
+        return;
+      }
+      if (!idCardFrontPath || !idCardBackPath || !electricityBillPath) {
+        toast.error("All three documents are compulsory for verification.");
         return;
       }
       toast.error("Please meet all password strength requirements.");
       return;
     }
-    setStep((s) => (s + 1) as 1 | 2 | 3);
+    setStep((s) => (Math.min(s + 1, TOTAL_STEPS) as 1 | 2 | 3 | 4));
   }
+
   function back() {
-    setStep((s) => (s - 1) as 1 | 2 | 3);
+    setStep((s) => (Math.max(s - 1, 1) as 1 | 2 | 3 | 4));
   }
 
   async function handleSubmit() {
-    if (!step3Valid) {
-      toast.error("Please confirm all required declarations.");
+    if (!step4Valid) {
+      toast.error("Please confirm all declarations and the subscription.");
       return;
     }
     setLoading(true);
@@ -152,6 +413,9 @@ export default function RegisterView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          accountType: accountType === "PARENT" ? "PARENT" : "INDIVIDUAL",
+          parentRelationship:
+            accountType === "PARENT" ? parentRelationship : undefined,
           fullName,
           dateOfBirth,
           gender,
@@ -160,17 +424,21 @@ export default function RegisterView() {
           password,
           city,
           connectionToGB,
+          idCardFrontPath,
+          idCardBackPath,
+          electricityBillPath,
           ismailiEligibilityConfirmed,
           matrimonialOnlyConfirmed,
           privacyPolicyAccepted,
           ageConfirmed,
+          subscriptionAccepted,
         }),
       });
       const data = (await res.json()) as RegisterResult;
       if (!res.ok || !data.ok) {
         if (data.issues && data.issues.length > 0) {
           data.issues.forEach((i) =>
-            toast.error(`${i.path.join(".")}: ${i.message}`)
+            toast.error(`${i.path.join(".")}: ${i.message}`),
           );
         } else {
           toast.error(data.error ?? "Registration failed.");
@@ -182,7 +450,8 @@ export default function RegisterView() {
       await refresh();
       if (data.dev?.otp && data.dev?.emailToken) {
         setSuccess({
-          message: data.message ?? "Verify your email and phone to continue.",
+          message:
+            data.message ?? "Verify your email and phone to continue.",
           otp: data.dev.otp,
           emailToken: data.dev.emailToken,
         });
@@ -197,7 +466,7 @@ export default function RegisterView() {
 
   if (success) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-navy-gradient flex items-center justify-center px-4 py-12">
+      <div className="bg-navy-gradient flex min-h-screen items-center justify-center px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -206,10 +475,10 @@ export default function RegisterView() {
         >
           <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg text-ivory">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full ring-gold bg-white/5">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/5 ring-gold">
                 <CheckCircle2 className="h-7 w-7 text-[#D6B77A]" />
               </div>
-              <CardTitle className="text-2xl font-serif text-gold-gradient">
+              <CardTitle className="text-gold-gradient font-serif text-2xl">
                 Account created
               </CardTitle>
               <CardDescription className="text-ivory/70">
@@ -218,19 +487,21 @@ export default function RegisterView() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-md border border-[#D6B77A]/30 bg-[#D6B77A]/10 p-4">
-                <p className="text-[10px] tracking-[0.25em] uppercase text-[#D6B77A] font-semibold mb-3">
-                  Demo only — in production these would be sent by SMS / email
+                <p className="mb-3 text-[10px] font-semibold tracking-[0.25em] uppercase text-[#D6B77A]">
+                  DEMO ONLY — in production these are sent by SMS / email
                 </p>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs text-ivory/60 mb-1">Phone OTP</p>
-                    <p className="font-mono text-lg tracking-wider text-ivory bg-white/5 rounded px-3 py-2 border border-[#D6B77A]/20">
+                    <p className="mb-1 text-xs text-ivory/60">Phone OTP</p>
+                    <p className="rounded border border-[#D6B77A]/20 bg-white/5 px-3 py-2 font-mono text-lg tracking-wider text-ivory">
                       {success.otp}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-ivory/60 mb-1">Email verification token</p>
-                    <p className="font-mono text-xs break-all text-ivory bg-white/5 rounded px-3 py-2 border border-[#D6B77A]/20">
+                    <p className="mb-1 text-xs text-ivory/60">
+                      Email verification token
+                    </p>
+                    <p className="rounded border border-[#D6B77A]/20 bg-white/5 px-3 py-2 break-all font-mono text-xs text-ivory">
                       {success.emailToken}
                     </p>
                   </div>
@@ -251,7 +522,7 @@ export default function RegisterView() {
               </Button>
               <button
                 onClick={() => setView("dashboard")}
-                className="text-sm text-ivory/70 hover:text-ivory underline-offset-4 hover:underline"
+                className="text-sm text-ivory/70 underline-offset-4 hover:text-ivory hover:underline"
               >
                 Skip and go to dashboard
               </button>
@@ -263,373 +534,669 @@ export default function RegisterView() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] bg-navy-gradient overflow-hidden py-12 px-4">
-      {/* Decorative glows */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[#D6B77A]/10 blur-3xl animate-float-slow" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#C88F91]/10 blur-3xl animate-float" />
-
+    <div className="bg-navy-gradient flex min-h-screen items-center justify-center px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="relative w-full max-w-xl mx-auto"
+        className="w-full max-w-2xl"
       >
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ring-gold bg-white/5">
-            <Heart className="h-5 w-5 text-[#D6B77A]" />
-          </div>
-          <h1 className="font-serif text-3xl text-ivory">Create your account</h1>
-          <p className="mt-1 text-sm text-ivory/70">
-            A considered, dignified beginning to your matrimonial journey.
-          </p>
-        </div>
-
-        {/* Notice */}
-        <div className="mb-6 rounded-md border border-[#D6B77A]/30 bg-[#D6B77A]/10 p-4 text-sm text-ivory/90">
-          <p className="flex gap-2">
-            <Sparkles className="h-4 w-4 text-[#D6B77A] shrink-0 mt-0.5" />
-            <span>
-              GarMinas is exclusively intended for adult Ismailis connected to
-              Gilgit-Baltistan and is dedicated solely to matrimonial purposes.
-            </span>
-          </p>
-        </div>
-
-        {/* Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between text-xs text-ivory/70 mb-2">
-            <span>Step {step} of 3</span>
-            <span>{step === 1 ? "Personal" : step === 2 ? "Security" : "Eligibility"}</span>
-          </div>
-          <Progress value={(step / 3) * 100} className="bg-white/10 h-1.5" />
-        </div>
-
         <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg text-ivory">
-          <CardHeader>
-            <CardTitle className="text-gold-gradient font-serif text-xl">
-              {step === 1 && "Personal details"}
-              {step === 2 && "Account security"}
-              {step === 3 && "Eligibility & consent"}
+          <CardHeader className="space-y-4">
+            <div className="flex items-center gap-2 text-[#D6B77A]">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+                GarMinas Registration
+              </span>
+            </div>
+            <CardTitle className="text-gold-gradient font-serif text-2xl sm:text-3xl">
+              Create your GarMinas account
             </CardTitle>
             <CardDescription className="text-ivory/70">
-              {step === 1 && "Tell us who you are and how to reach you."}
-              {step === 2 && "Choose a strong password that protects your account."}
-              {step === 3 && "Confirm your eligibility and accept our policies."}
+              A private, verified matrimonial platform for the Ismaili
+              community connected to Gilgit-Baltistan.
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="space-y-4"
-              >
-                {step === 1 && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-ivory/90">Full name *</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
-                        <Input
-                          id="fullName"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Your full name"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="dob" className="text-ivory/90">Date of birth *</Label>
-                        <Input
-                          id="dob"
-                          type="date"
-                          value={dateOfBirth}
-                          onChange={(e) => setDateOfBirth(e.target.value)}
-                          className="bg-white/5 border-[#D6B77A]/30 text-ivory"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-ivory/90">Gender *</Label>
-                        <Select value={gender} onValueChange={(v) => setGender(v as "Male" | "Female" | "Prefer not to say")}>
-                          <SelectTrigger className="bg-white/5 border-[#D6B77A]/30 text-ivory w-full">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-ivory/90">Email *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="mobile" className="text-ivory/90">Mobile number *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
-                        <Input
-                          id="mobile"
-                          type="tel"
-                          value={mobile}
-                          onChange={(e) => setMobile(e.target.value)}
-                          placeholder="e.g. +92 300 1234567"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city" className="text-ivory/90">Current city *</Label>
-                        <Input
-                          id="city"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="e.g. Karachi"
-                          className="bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-ivory/90">District connection</Label>
-                        <Select defaultValue="Gilgit">
-                          <SelectTrigger className="bg-white/5 border-[#D6B77A]/30 text-ivory w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GARMINAS_DISTRICTS.map((d) => (
-                              <SelectItem key={d} value={d}>{d}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="connectionToGB" className="text-ivory/90">
-                        Your connection to Gilgit-Baltistan *
-                      </Label>
-                      <div className="relative">
-                        <Globe2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
-                        <Input
-                          id="connectionToGB"
-                          value={connectionToGB}
-                          onChange={(e) => setConnectionToGB(e.target.value)}
-                          placeholder="e.g. Born in Hunza, family from Gilgit"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
 
-                {step === 2 && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-ivory/90">Password *</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
+            {/* Step indicator + progress */}
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-ivory/80">
+                  Step{" "}
+                  <span className="font-semibold text-ivory">{step}</span> of{" "}
+                  {TOTAL_STEPS}
+                </span>
+                <span className="text-ivory/60">
+                  {STEP_LABELS[step - 1]}
+                </span>
+              </div>
+              <Progress
+                value={progressPct}
+                className="h-2 bg-white/10 [&>div]:bg-[#D6B77A]"
+              />
+              <div className="hidden grid-cols-4 gap-1 pt-1 sm:grid">
+                {STEP_LABELS.map((label, i) => {
+                  const n = i + 1;
+                  const active = n === step;
+                  const complete = n < step;
+                  return (
+                    <div
+                      key={label}
+                      className={`flex items-center gap-1.5 text-[11px] ${
+                        active
+                          ? "text-[#D6B77A]"
+                          : complete
+                            ? "text-ivory/70"
+                            : "text-ivory/40"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] ${
+                          active
+                            ? "border-[#D6B77A] bg-[#D6B77A] text-[#111827]"
+                            : complete
+                              ? "border-[#D6B77A]/60 bg-[#D6B77A]/20 text-[#D6B77A]"
+                              : "border-white/20"
+                        }`}
+                      >
+                        {complete ? <Check className="h-2.5 w-2.5" /> : n}
+                      </span>
+                      <span className="hidden truncate lg:inline">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="min-h-[320px]">
+            <AnimatePresence mode="wait">
+              {/* ─────────────────────── STEP 1 ─────────────────────── */}
+              {step === 1 && (
+                <motion.div
+                  key="step-1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  <Alert className="border-[#D6B77A]/30 bg-[#D6B77A]/[0.07] text-ivory">
+                    <Info className="text-[#D6B77A]" />
+                    <AlertDescription className="text-ivory/80">
+                      GarMinas is exclusively intended for adult Ismailis
+                      connected to Gilgit-Baltistan and is dedicated solely to
+                      matrimonial purposes.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm text-ivory/80">
+                      Who are you registering?
+                    </Label>
+                    <RadioGroup
+                      value={accountType}
+                      onValueChange={(v) => setAccountType(v as AccountType)}
+                      className="gap-3"
+                    >
+                      <label
+                        htmlFor="acct-individual"
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                          accountType === "INDIVIDUAL"
+                            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+                            : "border-white/15 bg-white/[0.03] hover:border-[#D6B77A]/50"
+                        }`}
+                      >
+                        <RadioGroupItem
+                          id="acct-individual"
+                          value="INDIVIDUAL"
+                          className="mt-0.5 border-white/40 text-[#D6B77A] data-[state=checked]:border-[#D6B77A] data-[state=checked]:text-[#D6B77A]"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-[#D6B77A]" />
+                            <span className="text-sm font-medium text-ivory">
+                              Individual
+                            </span>
+                          </div>
+                          <p className="text-xs text-ivory/60">
+                            I am searching for myself
+                          </p>
+                        </div>
+                      </label>
+
+                      <label
+                        htmlFor="acct-parent"
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                          accountType === "PARENT"
+                            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+                            : "border-white/15 bg-white/[0.03] hover:border-[#D6B77A]/50"
+                        }`}
+                      >
+                        <RadioGroupItem
+                          id="acct-parent"
+                          value="PARENT"
+                          className="mt-0.5 border-white/40 text-[#D6B77A] data-[state=checked]:border-[#D6B77A] data-[state=checked]:text-[#D6B77A]"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Heart className="h-4 w-4 text-[#D6B77A]" />
+                            <span className="text-sm font-medium text-ivory">
+                              Parent / Guardian
+                            </span>
+                          </div>
+                          <p className="text-xs text-ivory/60">
+                            I am searching for my child
+                          </p>
+                        </div>
+                      </label>
+                    </RadioGroup>
+                  </div>
+
+                  <AnimatePresence>
+                    {accountType === "PARENT" && (
+                      <motion.div
+                        key="parent-relationship"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="parent-rel"
+                            className="text-sm text-ivory/80"
+                          >
+                            Your relationship to the person you are registering
+                          </Label>
+                          <Select
+                            value={parentRelationship}
+                            onValueChange={setParentRelationship}
+                          >
+                            <SelectTrigger
+                              id="parent-rel"
+                              className="border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+                            >
+                              <SelectValue placeholder="Select relationship" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Father">Father</SelectItem>
+                              <SelectItem value="Mother">Mother</SelectItem>
+                              <SelectItem value="Guardian">Guardian</SelectItem>
+                              <SelectItem value="Elder Sibling">
+                                Elder Sibling
+                              </SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────── STEP 2 ─────────────────────── */}
+              {step === 2 && (
+                <motion.div
+                  key="step-2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="grid gap-4 sm:grid-cols-2"
+                >
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="fullName" className="text-sm text-ivory/80">
+                      Full name
+                    </Label>
+                    <div className="relative">
+                      <User className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="fullName"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="e.g. Ali Karim"
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="dateOfBirth"
+                      className="text-sm text-ivory/80"
+                    >
+                      Date of birth
+                    </Label>
+                    <div className="relative">
+                      <Calendar className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender" className="text-sm text-ivory/80">
+                      Gender
+                    </Label>
+                    <Select
+                      value={gender}
+                      onValueChange={(v) => setGender(v as Gender)}
+                    >
+                      <SelectTrigger
+                        id="gender"
+                        className="border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+                      >
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Prefer not to say">
+                          Prefer not to say
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm text-ivory/80">
+                      Email address
+                    </Label>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile" className="text-sm text-ivory/80">
+                      Mobile number
+                    </Label>
+                    <div className="relative">
+                      <Phone className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="mobile"
+                        type="tel"
+                        value={mobile}
+                        onChange={(e) => setMobile(e.target.value)}
+                        placeholder="+92 3XX XXXXXXX"
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-sm text-ivory/80">
+                      Current city / district
+                    </Label>
+                    <div className="relative">
+                      <MapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g. Karachi"
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label
+                      htmlFor="connectionToGB"
+                      className="text-sm text-ivory/80"
+                    >
+                      Your connection to Gilgit-Baltistan
+                    </Label>
+                    <div className="relative">
+                      <Globe2 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <Input
+                        id="connectionToGB"
+                        value={connectionToGB}
+                        onChange={(e) => setConnectionToGB(e.target.value)}
+                        placeholder="e.g. Originally from Hunza, now based in Lahore"
+                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────── STEP 3 ─────────────────────── */}
+              {step === 3 && (
+                <motion.div
+                  key="step-3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  {/* Password + strength */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-[#D6B77A]">
+                      <Lock className="h-4 w-4" />
+                      <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+                        Account security
+                      </span>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="password"
+                          className="text-sm text-ivory/80"
+                        >
+                          Password
+                        </Label>
                         <Input
                           id="password"
                           type="password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          placeholder="At least 10 characters"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
+                          placeholder="Create a strong password"
+                          className="border-white/15 bg-white/[0.04] text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
                         />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirm" className="text-ivory/90">Confirm password *</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ivory/40" />
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="confirm"
+                          className="text-sm text-ivory/80"
+                        >
+                          Confirm password
+                        </Label>
                         <Input
                           id="confirm"
                           type="password"
                           value={confirm}
                           onChange={(e) => setConfirm(e.target.value)}
                           placeholder="Re-enter your password"
-                          className="pl-9 bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
+                          className={`border-white/15 bg-white/[0.04] text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A] ${
+                            confirm && confirm !== password
+                              ? "border-red-400/60"
+                              : ""
+                          }`}
                         />
                       </div>
-                      {confirm.length > 0 && confirm !== password && (
-                        <p className="text-xs text-[#D9534F]">Passwords do not match.</p>
-                      )}
                     </div>
 
-                    {/* Strength meter */}
-                    <div className="rounded-md border border-[#D6B77A]/20 bg-white/5 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-ivory/70">Password strength</span>
-                        <span className="text-xs text-[#D6B77A] font-medium">{strengthLabel}</span>
-                      </div>
-                      <Progress value={strengthPct} className="bg-white/10 h-1.5 mb-3" />
-                      <ul className="grid grid-cols-1 gap-1.5 text-xs text-ivory/80">
-                        <li className="flex items-center gap-2">
-                          <Check className={`h-3 w-3 ${strength.length ? "text-[#D6B77A]" : "text-ivory/40"}`} />
-                          At least 10 characters
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className={`h-3 w-3 ${strength.upper ? "text-[#D6B77A]" : "text-ivory/40"}`} />
-                          At least one uppercase letter
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className={`h-3 w-3 ${strength.lower ? "text-[#D6B77A]" : "text-ivory/40"}`} />
-                          At least one lowercase letter
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className={`h-3 w-3 ${strength.digit ? "text-[#D6B77A]" : "text-ivory/40"}`} />
-                          At least one digit
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className={`h-3 w-3 ${strength.special ? "text-[#D6B77A]" : "text-ivory/40"}`} />
-                          At least one special character
-                        </li>
-                      </ul>
-                    </div>
-                  </>
-                )}
-
-                {step === 3 && (
-                  <div className="space-y-4">
-                    <ConsentRow
-                      checked={ageConfirmed}
-                      onChange={setAgeConfirmed}
-                      label="I confirm that I am 18 years of age or older."
-                    />
-                    <ConsentRow
-                      checked={ismailiEligibilityConfirmed}
-                      onChange={setIsmailiEligibilityConfirmed}
-                      label="I confirm that I am an Ismaili connected to Gilgit-Baltistan and am eligible to use this community matrimonial platform."
-                    />
-                    <ConsentRow
-                      checked={matrimonialOnlyConfirmed}
-                      onChange={setMatrimonialOnlyConfirmed}
-                      label="I will use GarMinas solely for serious matrimonial purposes and not for casual dating, solicitation or commercial activity."
-                      footer={
-                        <button
-                          type="button"
-                          onClick={() => setView("legal-matrimonial")}
-                          className="text-[#D6B77A] hover:underline"
-                        >
-                          Read the matrimonial-only policy
-                        </button>
-                      }
-                    />
-                    <ConsentRow
-                      checked={privacyPolicyAccepted}
-                      onChange={setPrivacyPolicyAccepted}
-                      label="I have read and accept the GarMinas Privacy Policy."
-                      footer={
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                          <button onClick={() => setView("legal-privacy")} className="text-[#D6B77A] hover:underline">Privacy Policy</button>
-                          <button onClick={() => setView("legal-terms")} className="text-[#D6B77A] hover:underline">Terms of Service</button>
-                          <button onClick={() => setView("legal-community")} className="text-[#D6B77A] hover:underline">Community Standards</button>
-                          <button onClick={() => setView("legal-conduct")} className="text-[#D6B77A] hover:underline">Conduct Policy</button>
+                    {password && (
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-ivory/60">
+                            Password strength
+                          </span>
+                          <span
+                            className={`text-xs font-medium ${
+                              strengthScore >= 4
+                                ? "text-green-400"
+                                : strengthScore >= 3
+                                  ? "text-[#D6B77A]"
+                                  : "text-red-300"
+                            }`}
+                          >
+                            {strengthLabel}
+                          </span>
                         </div>
-                      }
-                    />
-                    <div className="rounded-md border border-[#D6B77A]/20 bg-white/5 p-4 text-xs text-ivory/70 flex gap-2">
-                      <ShieldCheck className="h-4 w-4 text-[#D6B77A] shrink-0" />
-                      <span>
-                        After registration, you'll verify your email and phone,
-                        and an authorised reviewer will discreetly confirm
-                        identity and community eligibility. Matchmaking unlocks
-                        only after your profile is approved.
+                        <Progress
+                          value={strengthPct}
+                          className="h-1.5 bg-white/10 [&>div]:bg-[#D6B77A]"
+                        />
+                        <ul className="grid grid-cols-1 gap-1 pt-1 sm:grid-cols-2">
+                          {(
+                            [
+                              ["length", "At least 10 characters"],
+                              ["upper", "One uppercase letter"],
+                              ["lower", "One lowercase letter"],
+                              ["digit", "One digit"],
+                              ["special", "One special character"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <li
+                              key={key}
+                              className="flex items-center gap-1.5 text-xs"
+                            >
+                              <span
+                                className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                                  strength[key]
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "bg-white/10 text-ivory/40"
+                                }`}
+                              >
+                                {strength[key] ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <span className="text-[10px]">·</span>
+                                )}
+                              </span>
+                              <span
+                                className={
+                                  strength[key]
+                                    ? "text-ivory/80"
+                                    : "text-ivory/50"
+                                }
+                              >
+                                {label}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Document uploads */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-[#D6B77A]">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+                        Compulsory documents
                       </span>
                     </div>
+
+                    <DocUploadZone
+                      label="Picture ID Card — Front side"
+                      description="JPEG, PNG or WebP · max 5MB"
+                      icon={<IdCard className="h-5 w-5" />}
+                      uploading={uploadingFront}
+                      preview={idCardFrontPreview}
+                      fileName={idCardFrontName}
+                      done={idCardFrontPath !== ""}
+                      onFile={(f) => handleDocSelect(f, "id_card_front")}
+                    />
+                    <DocUploadZone
+                      label="Picture ID Card — Back side"
+                      description="JPEG, PNG or WebP · max 5MB"
+                      icon={<IdCard className="h-5 w-5" />}
+                      uploading={uploadingBack}
+                      preview={idCardBackPreview}
+                      fileName={idCardBackName}
+                      done={idCardBackPath !== ""}
+                      onFile={(f) => handleDocSelect(f, "id_card_back")}
+                    />
+                    <DocUploadZone
+                      label="Latest Electricity Bill of your house"
+                      description="JPEG, PNG or WebP · max 5MB"
+                      icon={<Home className="h-5 w-5" />}
+                      uploading={uploadingBill}
+                      preview={electricityBillPreview}
+                      fileName={electricityBillName}
+                      done={electricityBillPath !== ""}
+                      onFile={(f) => handleDocSelect(f, "electricity_bill")}
+                    />
+
+                    <Alert className="border-white/15 bg-white/[0.04] text-ivory">
+                      <Lock className="text-[#D6B77A]" />
+                      <AlertDescription className="text-ivory/70">
+                        These documents are compulsory for verification. They
+                        will be reviewed by an authorized administrator before
+                        your profile is approved. Documents are stored securely
+                        and never made public.
+                      </AlertDescription>
+                    </Alert>
                   </div>
-                )}
-              </motion.div>
+                </motion.div>
+              )}
+
+              {/* ─────────────────────── STEP 4 ─────────────────────── */}
+              {step === 4 && (
+                <motion.div
+                  key="step-4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  <div className="flex items-center gap-2 text-[#D6B77A]">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+                      Eligibility & consent
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(
+                      [
+                        [
+                          ageConfirmed,
+                          setAgeConfirmed,
+                          "I confirm I am 18 years or older",
+                        ],
+                        [
+                          ismailiEligibilityConfirmed,
+                          setIsmailiEligibilityConfirmed,
+                          "I confirm my Ismaili community eligibility",
+                        ],
+                        [
+                          matrimonialOnlyConfirmed,
+                          setMatrimonialOnlyConfirmed,
+                          "I understand this is a matrimonial-only platform",
+                        ],
+                        [
+                          privacyPolicyAccepted,
+                          setPrivacyPolicyAccepted,
+                          "I accept the Privacy Policy",
+                        ],
+                      ] as const
+                    ).map(([value, setter, label]) => (
+                      <label
+                        key={label}
+                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-[#D6B77A]/40"
+                      >
+                        <Checkbox
+                          checked={value}
+                          onCheckedChange={(v) => setter(v === true)}
+                          className="mt-0.5 border-white/40 data-[state=checked]:border-[#D6B77A] data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827]"
+                        />
+                        <span className="text-sm text-ivory/90">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Subscription notice */}
+                  <div className="rounded-lg border-2 border-[#D6B77A]/60 bg-[#D6B77A]/[0.07] p-4">
+                    <div className="flex items-center gap-2 text-[#D6B77A]">
+                      <CreditCard className="h-4 w-4" />
+                      <span className="text-sm font-semibold">
+                        Monthly Subscription: 5,000 PKR
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-ivory/80">
+                      GarMinas operates on a monthly subscription of 5,000
+                      Pakistani Rupees. This covers profile verification,
+                      document review, matchmaking, and private messaging. You
+                      can browse profiles for free, but contacting members
+                      requires an active subscription.
+                    </p>
+                    <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-md border border-[#D6B77A]/30 bg-white/[0.04] p-3 transition-colors hover:border-[#D6B77A]/60">
+                      <Checkbox
+                        checked={subscriptionAccepted}
+                        onCheckedChange={(v) =>
+                          setSubscriptionAccepted(v === true)
+                        }
+                        className="mt-0.5 border-[#D6B77A]/60 data-[state=checked]:border-[#D6B77A] data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827]"
+                      />
+                      <span className="text-sm text-ivory/90">
+                        I acknowledge the monthly subscription fee of 5,000 PKR
+                        and understand I will need to submit payment after my
+                        documents are verified.
+                      </span>
+                    </label>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           </CardContent>
-          <Separator className="bg-[#D6B77A]/20" />
-          <CardFooter className="flex items-center justify-between gap-3 pt-4">
-            {step > 1 ? (
-              <Button
-                variant="ghost"
-                onClick={back}
-                disabled={loading}
-                className="text-ivory/80 hover:bg-white/5 hover:text-ivory"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
-              </Button>
-            ) : (
+
+          <CardFooter className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full gap-2 sm:w-auto">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={back}
+                  disabled={loading}
+                  className="text-ivory/70 hover:bg-white/5 hover:text-ivory"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </Button>
+              )}
+            </div>
+
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
               <button
+                type="button"
                 onClick={() => setView("login")}
-                className="text-sm text-ivory/70 hover:text-ivory underline-offset-4 hover:underline"
+                className="order-2 text-center text-sm text-ivory/70 underline-offset-4 hover:text-ivory hover:underline sm:order-1"
               >
-                Sign in instead
+                Already have an account?{" "}
+                <span className="text-[#D6B77A]">Sign in</span>
               </button>
-            )}
-            {step < 3 ? (
-              <Button
-                onClick={next}
-                className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5]"
-              >
-                Continue <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5]"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {loading ? "Creating account…" : "Create account"}
-              </Button>
-            )}
+
+              {step < TOTAL_STEPS ? (
+                <Button
+                  type="button"
+                  onClick={next}
+                  className="order-1 w-full bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] sm:order-2 sm:w-auto"
+                >
+                  Continue <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="order-1 w-full bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] sm:order-2 sm:w-auto"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" /> Create Account
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </CardFooter>
         </Card>
       </motion.div>
-    </div>
-  );
-}
-
-function ConsentRow({
-  checked,
-  onChange,
-  label,
-  footer,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  footer?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md border border-[#D6B77A]/20 bg-white/5 p-4">
-      <div className="flex items-start gap-3">
-        <Checkbox
-          checked={checked}
-          onCheckedChange={(v) => onChange(v === true)}
-          className="mt-0.5 data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827] data-[state=checked]:border-[#D6B77A]"
-        />
-        <div className="flex-1">
-          <p className="text-sm text-ivory/90">{label}</p>
-          {footer && <div className="mt-2">{footer}</div>}
-        </div>
-      </div>
     </div>
   );
 }

@@ -13,16 +13,25 @@ import {
 } from "@/lib/auth";
 
 const RegisterSchema = z.object({
+  // Account type: INDIVIDUAL (self) or PARENT (searching for child)
+  accountType: z.enum(["INDIVIDUAL", "PARENT"]).default("INDIVIDUAL"),
+  // If PARENT, the parent's own details + child details
+  parentRelationship: z.string().optional(), // "father", "mother", "guardian"
+  // The person whose profile this is (self, or child if parent is registering)
   fullName: z.string().min(2, "Full name is required."),
   dateOfBirth: z.string().min(1, "Date of birth is required."),
   gender: z.enum(["Male", "Female", "Prefer not to say"]),
-  email: z.string().email("A valid email is required."),
+  email: z.string().trim().toLowerCase().email("A valid email is required."),
   mobile: z.string().min(7, "A valid mobile number is required."),
   password: z.string().min(1, "Password is required."),
   city: z.string().min(2, "Current city or district is required."),
   connectionToGB: z
     .string()
     .min(2, "Your connection to Gilgit-Baltistan is required."),
+  // Compulsory document uploads (file paths returned by /api/upload)
+  idCardFrontPath: z.string().min(1, "ID card (front) is compulsory."),
+  idCardBackPath: z.string().min(1, "ID card (back) is compulsory."),
+  electricityBillPath: z.string().min(1, "Latest electricity bill is compulsory."),
   ismailiEligibilityConfirmed: z.boolean().refine((v) => v === true, {
     message: "You must confirm your Ismaili community eligibility.",
   }),
@@ -34,6 +43,9 @@ const RegisterSchema = z.object({
   }),
   ageConfirmed: z.boolean().refine((v) => v === true, {
     message: "You must confirm you are 18 or older.",
+  }),
+  subscriptionAccepted: z.boolean().refine((v) => v === true, {
+    message: "You must acknowledge the monthly subscription fee of 5000 PKR.",
   }),
 });
 
@@ -137,6 +149,10 @@ export async function POST(req: NextRequest) {
       phoneOtpExpires: otpExpires,
       role: "MEMBER",
       status: "PENDING",
+      accountType: d.accountType,
+      // Subscription starts as NONE — user must pay 5000 PKR after document verification
+      subscriptionStatus: "NONE",
+      subscriptionAmount: 5000,
     },
   });
 
@@ -150,12 +166,46 @@ export async function POST(req: NextRequest) {
       gender: d.gender,
       city: d.city,
       connectionToGB: d.connectionToGB,
+      // If parent is registering, record the parent relationship
+      createdByParentId: d.accountType === "PARENT" ? user.id : null,
+      parentRelationship: d.accountType === "PARENT" ? d.parentRelationship : null,
     },
   });
 
   // Verification skeleton
   await db.verificationRecord.create({
     data: { profileId: profile.id, communityConsent: false },
+  });
+
+  // The 3 compulsory documents were uploaded via /api/upload (anonymous)
+  // and the paths were passed in. Create VerificationDocument records now.
+  await db.verificationDocument.createMany({
+    data: [
+      {
+        userId: user.id,
+        verificationId: profile.id,
+        type: "id_card_front",
+        filePath: d.idCardFrontPath,
+        mimeType: "image/jpeg",
+        reviewStatus: "PENDING",
+      },
+      {
+        userId: user.id,
+        verificationId: profile.id,
+        type: "id_card_back",
+        filePath: d.idCardBackPath,
+        mimeType: "image/jpeg",
+        reviewStatus: "PENDING",
+      },
+      {
+        userId: user.id,
+        verificationId: profile.id,
+        type: "electricity_bill",
+        filePath: d.electricityBillPath,
+        mimeType: "image/jpeg",
+        reviewStatus: "PENDING",
+      },
+    ],
   });
 
   // Record consents

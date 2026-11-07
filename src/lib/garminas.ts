@@ -138,6 +138,7 @@ export type ViewKey =
   | "family"
   | "verify"
   | "privacy"
+  | "subscription"
   | "notifications"
   | "safety"
   | "success-stories"

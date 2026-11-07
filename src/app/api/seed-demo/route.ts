@@ -62,6 +62,12 @@ export async function POST() {
         role: "MEMBER",
         status: "ACTIVE",
         isProfileApproved: true,
+        accountType: "INDIVIDUAL",
+        // Give the demo member an active subscription so all features work
+        subscriptionStatus: "ACTIVE",
+        subscriptionAmount: 5000,
+        subscriptionStartsAt: new Date(),
+        subscriptionExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       },
     });
     const profile = await db.profile.create({

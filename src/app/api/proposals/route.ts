@@ -67,6 +67,26 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+  // Subscription gate: an active subscription (5000 PKR/month) is required
+  // to send proposals. Browsing is free; contacting is paid.
+  const subUser = await db.user.findUnique({
+    where: { id: sess.userId },
+    select: { subscriptionStatus: true, subscriptionExpiresAt: true },
+  });
+  const subActive =
+    subUser?.subscriptionStatus === "ACTIVE" &&
+    subUser.subscriptionExpiresAt &&
+    subUser.subscriptionExpiresAt > new Date();
+  if (!subActive) {
+    return NextResponse.json(
+      {
+        error:
+          "An active subscription (5000 PKR/month) is required to send proposals. Please activate your subscription from the dashboard.",
+        subscriptionRequired: true,
+      },
+      { status: 403 }
+    );
+  }
   const body = await req.json().catch(() => ({}));
   const parsed = ProposalSchema.safeParse(body);
   if (!parsed.success) {

@@ -44,6 +44,7 @@ const ACCOUNT_NAV: { key: ViewKey; label: string }[] = [
   { key: "profile-edit", label: "Edit Profile" },
   { key: "verify", label: "Verification" },
   { key: "family", label: "Family" },
+  { key: "subscription", label: "Subscription" },
   { key: "privacy", label: "Privacy Centre" },
   { key: "notifications", label: "Notifications" },
   { key: "safety", label: "Safety" },
