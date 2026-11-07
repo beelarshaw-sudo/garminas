@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useNav, useSession } from "@/lib/store";
 import { Header } from "@/components/garminas/Header";
 import { Footer } from "@/components/garminas/Footer";
@@ -8,27 +9,98 @@ import { HomeView } from "@/components/garminas/HomeView";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
-// View imports
-import AboutView from "@/components/garminas/views/AboutView";
-import RegisterView from "@/components/garminas/views/RegisterView";
-import LoginView from "@/components/garminas/views/LoginView";
-import ProfileEditView from "@/components/garminas/views/ProfileEditView";
-import DashboardView from "@/components/garminas/views/DashboardView";
-import DiscoverView from "@/components/garminas/views/DiscoverView";
-import ProfileDetailView from "@/components/garminas/views/ProfileDetailView";
-import ProposalsView from "@/components/garminas/views/ProposalsView";
-import MessagesView from "@/components/garminas/views/MessagesView";
-import FamilyView from "@/components/garminas/views/FamilyView";
-import VerifyView from "@/components/garminas/views/VerifyView";
-import PrivacyView from "@/components/garminas/views/PrivacyView";
-import NotificationsView from "@/components/garminas/views/NotificationsView";
-import SafetyView from "@/components/garminas/views/SafetyView";
-import SuccessStoriesView from "@/components/garminas/views/SuccessStoriesView";
-import HelpView from "@/components/garminas/views/HelpView";
-import AdminView from "@/components/garminas/views/AdminView";
-import LegalView from "@/components/garminas/views/LegalView";
-import GuidanceView from "@/components/garminas/views/GuidanceView";
-import NotFoundMemberView from "@/components/garminas/views/NotFoundMemberView";
+// Code-split every view into its own chunk so the dev server only compiles
+// the currently-displayed view, not all 20 at once. This dramatically reduces
+// memory pressure during initial page load and view transitions.
+const NotFoundMemberView = dynamic(
+  () => import("@/components/garminas/views/NotFoundMemberView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const AboutView = dynamic(() => import("@/components/garminas/views/AboutView"), {
+  ssr: false,
+  loading: () => <ViewLoader />,
+});
+const RegisterView = dynamic(
+  () => import("@/components/garminas/views/RegisterView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const LoginView = dynamic(() => import("@/components/garminas/views/LoginView"), {
+  ssr: false,
+  loading: () => <ViewLoader />,
+});
+const ProfileEditView = dynamic(
+  () => import("@/components/garminas/views/ProfileEditView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const DashboardView = dynamic(
+  () => import("@/components/garminas/views/DashboardView"),
+  { ssr: false,
+    loading: () => <ViewLoader /> }
+);
+const DiscoverView = dynamic(
+  () => import("@/components/garminas/views/DiscoverView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const ProfileDetailView = dynamic(
+  () => import("@/components/garminas/views/ProfileDetailView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const ProposalsView = dynamic(
+  () => import("@/components/garminas/views/ProposalsView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const MessagesView = dynamic(
+  () => import("@/components/garminas/views/MessagesView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const FamilyView = dynamic(
+  () => import("@/components/garminas/views/FamilyView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const VerifyView = dynamic(
+  () => import("@/components/garminas/views/VerifyView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const PrivacyView = dynamic(
+  () => import("@/components/garminas/views/PrivacyView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const NotificationsView = dynamic(
+  () => import("@/components/garminas/views/NotificationsView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const SafetyView = dynamic(
+  () => import("@/components/garminas/views/SafetyView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const SuccessStoriesView = dynamic(
+  () => import("@/components/garminas/views/SuccessStoriesView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const HelpView = dynamic(() => import("@/components/garminas/views/HelpView"), {
+  ssr: false,
+  loading: () => <ViewLoader />,
+});
+const AdminView = dynamic(
+  () => import("@/components/garminas/views/AdminView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const LegalView = dynamic(
+  () => import("@/components/garminas/views/LegalView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+const GuidanceView = dynamic(
+  () => import("@/components/garminas/views/GuidanceView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
+
+function ViewLoader() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--gold)" }} />
+    </div>
+  );
+}
 
 const MEMBER_ONLY_VIEWS = [
   "profile-create",
@@ -66,7 +138,6 @@ export default function Page() {
   const isAdminView = (ADMIN_VIEWS as readonly string[]).includes(view);
   const needsAuth = isMemberView || isAdminView;
 
-  // Show loader while we determine session
   const showLoader = needsAuth && loading;
   const blockedByAuth = needsAuth && !loading && !session;
   const blockedByRole =
@@ -77,11 +148,7 @@ export default function Page() {
 
   function renderView() {
     if (showLoader) {
-      return (
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--gold)" }} />
-        </div>
-      );
+      return <ViewLoader />;
     }
     if (blockedByAuth) {
       return <NotFoundMemberView />;
@@ -89,7 +156,10 @@ export default function Page() {
     if (blockedByRole) {
       return (
         <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-          <h2 className="font-serif text-2xl font-semibold mb-2" style={{ color: "var(--navy)" }}>
+          <h2
+            className="font-serif text-2xl font-semibold mb-2"
+            style={{ color: "var(--navy)" }}
+          >
             Administrator access required
           </h2>
           <p className="text-muted-foreground mb-6">

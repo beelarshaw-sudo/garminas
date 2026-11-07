@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-const Hero3D = dynamic(() => import("@/components/garminas/Hero3D"), {
+const Hero3D = dynamic(() => import("@/components/garminas/Hero3DCSS"), {
   ssr: false,
   loading: () => (
     <div className="absolute inset-0 flex items-center justify-center">
