@@ -38,6 +38,15 @@ const Hero3D = dynamic(() => import("@/components/garminas/Hero3D"), {
   ),
 });
 
+const VideoBackground = dynamic(
+  () => import("@/components/garminas/VideoBackground").then((m) => m.VideoBackground),
+  { ssr: false, loading: () => null }
+);
+const RomanticAudio = dynamic(
+  () => import("@/components/garminas/RomanticAudio").then((m) => m.RomanticAudio),
+  { ssr: false, loading: () => null }
+);
+
 const WHY = [
   {
     icon: Shield,
@@ -116,32 +125,29 @@ export function HomeView() {
 
   return (
     <div>
-      {/* HERO — two-band layout: text band on top, 3D band below */}
-      <section className="relative overflow-hidden flex flex-col">
-        {/* Background gradient */}
+      {/* HERO — cinematic wedding video background with 3D rings as fallback */}
+      <section className="relative min-h-[96vh] overflow-hidden flex flex-col">
+        {/* Base gradient (always present underneath everything) */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 z-0"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 30%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
+              "radial-gradient(ellipse at 50% 35%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
           }}
         />
-        {/* 3D scene — pinned to the bottom half of the hero, behind a fade-to-ivory top */}
-        <div className="absolute inset-x-0 bottom-0 h-[60%] z-0">
+        {/* 3D scene as fallback layer — visible only if video doesn't load */}
+        <div className="absolute inset-0 z-0">
           <Hero3D className="h-full w-full" />
         </div>
-        {/* Soft fade from the text area down into the 3D area for blending */}
-        <div
-          className="absolute inset-x-0 z-10 pointer-events-none"
-          style={{
-            top: "30%",
-            height: "30%",
-            background:
-              "linear-gradient(180deg, rgba(250,247,240,1) 0%, rgba(250,247,240,0.7) 50%, rgba(250,247,240,0.15) 100%)",
-          }}
-        />
+        {/* Cinematic wedding video background on top of the 3D scene */}
+        <VideoBackground className="absolute inset-0 z-[1]" />
 
-        {/* Text content band */}
+        {/* Top-right: ambient music toggle */}
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30">
+          <RomanticAudio />
+        </div>
+
+        {/* Text content */}
         <div className="relative z-20 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center pt-24 sm:pt-32 pb-10">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -159,7 +165,10 @@ export function HomeView() {
               <br />
               <span className="text-gold-gradient">Forever</span> Begins Here.
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+            <p
+              className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed"
+              style={{ color: "var(--navy)", textShadow: "0 1px 12px rgba(250, 247, 240, 0.8)" }}
+            >
               GarMinas brings eligible Ismailis connected to Gilgit-Baltistan
               together through a secure, sophisticated and respectful matchmaking
               experience — built on trust, privacy, and a genuine commitment to
@@ -182,7 +191,7 @@ export function HomeView() {
                 size="lg"
                 variant="outline"
                 onClick={() => setView("about")}
-                className="border-gold bg-white/80 backdrop-blur"
+                className="border-gold bg-white/85 backdrop-blur"
               >
                 Explore How It Works
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -191,8 +200,8 @@ export function HomeView() {
           </motion.div>
         </div>
 
-        {/* 3D band: dedicated space for the rings to live without text overlap */}
-        <div className="relative z-0 h-[42vh] min-h-[280px]" />
+        {/* Spacer for visual breathing room at the bottom of the hero */}
+        <div className="relative z-10 h-[18vh] min-h-[120px]" />
 
         {/* Disclaimer pinned at the very bottom of hero */}
         <motion.p
