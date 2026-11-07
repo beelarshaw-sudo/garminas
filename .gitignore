@@ -36,6 +36,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# database (contains user data, passwords — never commit)
+db/*.db
+db/*.db-journal
+
+# user document uploads (private — ID cards, electricity bills, payment receipts)
+public/uploads/
+
 
 # typescript
 *.tsbuildinfo
