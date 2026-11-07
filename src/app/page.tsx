@@ -7,7 +7,7 @@ import { Header } from "@/components/garminas/Header";
 import { Footer } from "@/components/garminas/Footer";
 import { HomeView } from "@/components/garminas/HomeView";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 
 // Code-split every view into its own chunk so the dev server only compiles
 // the currently-displayed view, not all 20 at once. This dramatically reduces
@@ -106,6 +106,16 @@ function ViewLoader() {
   );
 }
 
+// Views that require an active subscription (core matchmaking features)
+const SUBSCRIPTION_REQUIRED_VIEWS = [
+  "dashboard",
+  "discover",
+  "profile-detail",
+  "proposals",
+  "messages",
+] as const;
+
+// Views that require login but NOT subscription (account management)
 const MEMBER_ONLY_VIEWS = [
   "profile-create",
   "profile-edit",
@@ -150,6 +160,16 @@ export default function Page() {
     !loading &&
     session &&
     !["ADMIN", "SUPER_ADMIN", "MODERATOR", "VERIFIER"].includes(session.role);
+  // Subscription gate: core matchmaking features require an active subscription
+  const needsSubscription = (
+    SUBSCRIPTION_REQUIRED_VIEWS as readonly string[]
+  ).includes(view);
+  const blockedBySubscription =
+    needsSubscription &&
+    !loading &&
+    session &&
+    !session.subscriptionActive &&
+    session.role === "MEMBER";
 
   function renderView() {
     if (showLoader) {
@@ -157,6 +177,53 @@ export default function Page() {
     }
     if (blockedByAuth) {
       return <NotFoundMemberView />;
+    }
+    if (blockedBySubscription) {
+      return (
+        <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+          <div
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
+            style={{ background: "linear-gradient(135deg, #E8D9B5, #D6B77A)" }}
+          >
+            <Lock className="h-8 w-8" style={{ color: "#111827" }} />
+          </div>
+          <h2
+            className="font-serif text-2xl font-semibold mb-3"
+            style={{ color: "#111827" }}
+          >
+            Subscription Required
+          </h2>
+          <p className="text-muted-foreground mb-2">
+            GarMinas is a paid platform for serious individuals seeking marriage.
+          </p>
+          <p className="text-sm text-muted-foreground mb-6">
+            An active subscription (5,000 PKR/month) is required to browse profiles,
+            send proposals, and message members. Account management pages remain
+            accessible without a subscription.
+          </p>
+          <div
+            className="mb-6 rounded-lg border p-4 text-left"
+            style={{ borderColor: "rgba(214,183,122,0.3)", background: "#FAF7F0" }}
+          >
+            <p className="text-sm font-medium mb-1" style={{ color: "#111827" }}>
+              Monthly Subscription — 5,000 PKR
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Pay via EasyPaisa, JazzCash, SadaPay, Bank Transfer, or Credit Card.
+              Upload your payment screenshot for admin verification.
+            </p>
+          </div>
+          <button
+            className="rounded-md px-6 py-3 text-sm font-medium text-navy shadow-lux-lg"
+            style={{
+              background: "linear-gradient(135deg, #E8D9B5, #D6B77A, #B8964A)",
+            }}
+            onClick={() => setView("subscription")}
+          >
+            Activate Subscription
+          </button>
+        </div>
+      );
     }
     if (blockedByRole) {
       return (

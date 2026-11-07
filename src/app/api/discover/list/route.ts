@@ -55,6 +55,23 @@ export async function GET(req: NextRequest) {
       profileNotApproved: true,
     });
   }
+  // Subscription gate: an active subscription is REQUIRED to browse profiles.
+  // GarMinas is a paid platform — only subscribed members can discover other members.
+  const subUser = await db.user.findUnique({
+    where: { id: sess.userId },
+    select: { subscriptionStatus: true, subscriptionExpiresAt: true },
+  });
+  const subActive =
+    subUser?.subscriptionStatus === "ACTIVE" &&
+    subUser.subscriptionExpiresAt &&
+    subUser.subscriptionExpiresAt > new Date();
+  if (!subActive) {
+    return NextResponse.json({
+      matches: [],
+      subscriptionRequired: true,
+      note: "An active subscription (5,000 PKR/month) is required to browse member profiles. Please activate your subscription to discover compatible members.",
+    });
+  }
 
   const url = new URL(req.url);
   const ageMin = url.searchParams.get("ageMin");

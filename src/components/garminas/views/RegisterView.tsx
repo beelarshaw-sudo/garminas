@@ -520,11 +520,22 @@ export default function RegisterView() {
               >
                 Continue to verification <ArrowRight className="h-4 w-4" />
               </Button>
+              <div
+                className="w-full rounded-lg border border-[#D6B77A]/30 bg-[#D6B77A]/10 p-3 text-center"
+              >
+                <p className="text-xs text-ivory/80">
+                  After verification, you'll need to activate your{" "}
+                  <span className="font-medium text-[#D6B77A]">
+                    monthly subscription (5,000 PKR)
+                  </span>{" "}
+                  to browse profiles and contact members.
+                </p>
+              </div>
               <button
-                onClick={() => setView("dashboard")}
+                onClick={() => setView("subscription")}
                 className="text-sm text-ivory/70 underline-offset-4 hover:text-ivory hover:underline"
               >
-                Skip and go to dashboard
+                Go to subscription payment
               </button>
             </CardFooter>
           </Card>

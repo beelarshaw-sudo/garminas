@@ -16,12 +16,29 @@ export async function GET() {
         where: { profileId: profile.id },
       })
     : null;
+  // Include subscription status so the frontend can gate features
+  const user = await db.user.findUnique({
+    where: { id: sess.userId },
+    select: {
+      subscriptionStatus: true,
+      subscriptionExpiresAt: true,
+      accountType: true,
+    },
+  });
+  const subActive =
+    user?.subscriptionStatus === "ACTIVE" &&
+    user.subscriptionExpiresAt &&
+    user.subscriptionExpiresAt > new Date();
   return NextResponse.json({
     session: {
       ...sess,
       profileComplete: profile?.completionPercent ?? 0,
       fullName: profile?.fullName,
       profileId: profile?.id,
+      accountType: user?.accountType ?? "INDIVIDUAL",
+      subscriptionActive: !!subActive,
+      subscriptionStatus: user?.subscriptionStatus ?? "NONE",
+      subscriptionExpiresAt: user?.subscriptionExpiresAt,
       verification: verification
         ? {
             emailVerified: verification.emailVerified || sess.emailVerified,

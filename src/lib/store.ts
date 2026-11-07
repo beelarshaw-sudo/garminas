@@ -44,6 +44,12 @@ interface ClientSession {
   status: string;
   profileApproved: boolean;
   profileComplete: number;
+  fullName?: string;
+  profileId?: string;
+  accountType?: string;
+  subscriptionActive?: boolean;
+  subscriptionStatus?: string;
+  subscriptionExpiresAt?: string | null;
 }
 
 interface SessionState {

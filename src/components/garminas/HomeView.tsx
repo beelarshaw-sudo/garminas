@@ -17,6 +17,10 @@ import {
   UserPlus,
   HandHeart,
   ChevronRight,
+  CreditCard,
+  Smartphone,
+  Wallet,
+  Building2,
 } from "lucide-react";
 import {
   Accordion,
@@ -312,6 +316,131 @@ export function HomeView() {
             <ChevronRight className="h-4 w-4 rotate-90" />
           </motion.div>
         </motion.div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SUBSCRIPTION PRICING — Required to join GarMinas
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <p
+              className="mb-3 text-xs uppercase tracking-[0.25em]"
+              style={{ color: "#B8964A" }}
+            >
+              Membership Required
+            </p>
+            <h2
+              className="font-serif text-3xl font-semibold sm:text-4xl"
+              style={{ color: "#111827" }}
+            >
+              A subscription for serious intentions
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
+              GarMinas is built for individuals genuinely seeking marriage. The monthly
+              subscription ensures every member is committed, verified, and serious about
+              finding a life partner.
+            </p>
+          </div>
+
+          {/* Pricing card */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="mx-auto max-w-md"
+          >
+            <Card
+              className="relative overflow-hidden border-gold/40 shadow-lux-lg"
+              style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FAF7F0 100%)" }}
+            >
+              {/* Gold top bar */}
+              <div
+                className="h-1.5"
+                style={{ background: "linear-gradient(90deg, #E8D9B5, #D6B77A, #B8964A)" }}
+              />
+              <CardContent className="p-8 text-center">
+                <div
+                  className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+                  style={{ background: "linear-gradient(135deg, #E8D9B5, #D6B77A)" }}
+                >
+                  <CreditCard className="h-6 w-6" style={{ color: "#111827" }} />
+                </div>
+                <h3 className="font-serif text-xl font-semibold" style={{ color: "#111827" }}>
+                  Monthly Subscription
+                </h3>
+                <div className="my-6">
+                  <span
+                    className="font-serif text-6xl font-bold"
+                    style={{
+                      background: "linear-gradient(135deg, #D6B77A, #B8964A)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
+                    5,000
+                  </span>
+                  <span className="ml-2 text-lg text-muted-foreground">PKR / month</span>
+                </div>
+                <div className="mb-6 space-y-2 text-left">
+                  {[
+                    "Create your verified profile",
+                    "Upload ID card + documents for verification",
+                    "Browse matched member profiles",
+                    "Send and receive matrimonial proposals",
+                    "Private messaging after acceptance",
+                    "Family involvement features",
+                    "Priority support",
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2
+                        className="h-4 w-4 shrink-0"
+                        style={{ color: "#D6B77A" }}
+                      />
+                      <span style={{ color: "#111827" }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full shadow-lux-lg"
+                  onClick={() => setView("register")}
+                  style={{
+                    background: "linear-gradient(135deg, #E8D9B5 0%, #D6B77A 50%, #B8964A 100%)",
+                    color: "#111827",
+                  }}
+                >
+                  <Heart className="mr-2 h-4 w-4" />
+                  Subscribe & Create Account
+                </Button>
+                <p className="mt-3 text-[11px] text-muted-foreground">
+                  Payment via EasyPaisa, JazzCash, SadaPay, Bank Transfer, or Card.
+                  Account is activated after document + payment verification.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Payment methods row */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Smartphone className="h-4 w-4" style={{ color: "#00A651" }} /> EasyPaisa
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Wallet className="h-4 w-4" style={{ color: "#ED1C24" }} /> JazzCash
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Wallet className="h-4 w-4" style={{ color: "#6C5CE7" }} /> SadaPay
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Building2 className="h-4 w-4" style={{ color: "#2D3436" }} /> Bank Transfer
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CreditCard className="h-4 w-4" style={{ color: "#0984E3" }} /> Credit/Debit Card
+            </span>
+          </div>
+        </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════
