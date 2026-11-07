@@ -115,6 +115,145 @@ function educationSatisfies(candidate: string, pref: string): boolean {
   return ci >= bi;
 }
 
+/**
+ * MUTUAL MATCH CHECK
+ *
+ * A profile is only visible to a member if BOTH sides' declared preferences
+ * are satisfied by the other's attributes. This implements bidirectional
+ * (mutual) matching — not just "do I like them" but "do we both match."
+ *
+ * If a side hasn't declared any preferences yet, they are treated as
+ * "open to all" (no constraint) rather than blocking all matches.
+ */
+export interface MutualMatchResult {
+  isMutualMatch: boolean;
+  seekerToCandidate: CompatibilityResult; // "Do my prefs match their profile?"
+  candidateToSeeker: CompatibilityResult; // "Do their prefs match my profile?"
+  mutualFactors: { label: string; seekerSide: boolean; candidateSide: boolean }[];
+}
+
+export function isMutualMatch(
+  seekerPrefs: {
+    preferredAgeMin?: number | null;
+    preferredAgeMax?: number | null;
+    preferredLocation?: string[] | null;
+    educationPrefs?: string | null;
+    professionPrefs?: string | null;
+    maritalStatusPrefs?: string[] | null;
+  },
+  seekerAttrs: {
+    age: number;
+    city: string;
+    district: string;
+    education: string;
+    profession: string;
+    maritalStatus: string;
+  },
+  candidatePrefs: {
+    preferredAgeMin?: number | null;
+    preferredAgeMax?: number | null;
+    preferredLocation?: string[] | null;
+    educationPrefs?: string | null;
+    professionPrefs?: string | null;
+    maritalStatusPrefs?: string[] | null;
+  },
+  candidateAttrs: {
+    age: number;
+    city: string;
+    district: string;
+    education: string;
+    profession: string;
+    maritalStatus: string;
+  }
+): MutualMatchResult {
+  // Direction 1: seeker → candidate (do my prefs match their profile?)
+  const s2c = computeCompatibility(seekerPrefs, candidateAttrs);
+  // Direction 2: candidate → seeker (do their prefs match my profile?)
+  const c2s = computeCompatibility(candidatePrefs, seekerAttrs);
+
+  // Build mutual factors showing both sides
+  const mutualFactors: {
+    label: string;
+    seekerSide: boolean;
+    candidateSide: boolean;
+  }[] = [];
+
+  // Helper: look up a factor result safely
+  const factorMatched = (
+    result: CompatibilityResult,
+    label: string
+  ): boolean => {
+    const f = result.factors.find((x) => x.label === label);
+    return f ? f.matched : true; // if factor wasn't computed (no pref set), treat as pass
+  };
+
+  // Age — both sides must match (if they've set a preference)
+  const seekerAgeSet =
+    seekerPrefs.preferredAgeMin != null && seekerPrefs.preferredAgeMax != null;
+  const candidateAgeSet =
+    candidatePrefs.preferredAgeMin != null && candidatePrefs.preferredAgeMax != null;
+  if (seekerAgeSet || candidateAgeSet) {
+    const sSide = !seekerAgeSet || factorMatched(s2c, "Age range");
+    const cSide = !candidateAgeSet || factorMatched(c2s, "Age range");
+    mutualFactors.push({ label: "Age range", seekerSide: sSide, candidateSide: cSide });
+  }
+
+  // Location
+  const seekerLocSet =
+    seekerPrefs.preferredLocation && seekerPrefs.preferredLocation.length > 0;
+  const candidateLocSet =
+    candidatePrefs.preferredLocation && candidatePrefs.preferredLocation.length > 0;
+  if (seekerLocSet || candidateLocSet) {
+    const sSide = !seekerLocSet || factorMatched(s2c, "Preferred location");
+    const cSide = !candidateLocSet || factorMatched(c2s, "Preferred location");
+    mutualFactors.push({ label: "Location", seekerSide: sSide, candidateSide: cSide });
+  }
+
+  // Education
+  if (seekerPrefs.educationPrefs || candidatePrefs.educationPrefs) {
+    const sSide = !seekerPrefs.educationPrefs || factorMatched(s2c, "Education preference");
+    const cSide = !candidatePrefs.educationPrefs || factorMatched(c2s, "Education preference");
+    mutualFactors.push({ label: "Education", seekerSide: sSide, candidateSide: cSide });
+  }
+
+  // Profession
+  const seekerProfSet =
+    seekerPrefs.professionPrefs &&
+    seekerPrefs.professionPrefs.toLowerCase() !== "any";
+  const candidateProfSet =
+    candidatePrefs.professionPrefs &&
+    candidatePrefs.professionPrefs.toLowerCase() !== "any";
+  if (seekerProfSet || candidateProfSet) {
+    const sSide = !seekerProfSet || factorMatched(s2c, "Profession preference");
+    const cSide = !candidateProfSet || factorMatched(c2s, "Profession preference");
+    mutualFactors.push({ label: "Profession", seekerSide: sSide, candidateSide: cSide });
+  }
+
+  // Marital status
+  const seekerMsSet =
+    seekerPrefs.maritalStatusPrefs && seekerPrefs.maritalStatusPrefs.length > 0;
+  const candidateMsSet =
+    candidatePrefs.maritalStatusPrefs && candidatePrefs.maritalStatusPrefs.length > 0;
+  if (seekerMsSet || candidateMsSet) {
+    const sSide = !seekerMsSet || factorMatched(s2c, "Marital status preference");
+    const cSide = !candidateMsSet || factorMatched(c2s, "Marital status preference");
+    mutualFactors.push({ label: "Marital status", seekerSide: sSide, candidateSide: cSide });
+  }
+
+  // A mutual match requires that all DECLARED preferences on both sides are satisfied.
+  // If someone hasn't set a preference, it doesn't block the match.
+  const isMutualMatch = mutualFactors.every(
+    (f) => f.seekerSide && f.candidateSide
+  );
+
+  return {
+    isMutualMatch,
+    seekerToCandidate: s2c,
+    candidateToSeeker: c2s,
+    mutualFactors,
+  };
+}
+
 export interface DiscoverFilters {
   ageMin?: number;
   ageMax?: number;

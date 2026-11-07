@@ -190,19 +190,22 @@ export default function DiscoverView() {
             Discover <span className="text-gold-gradient">Members</span>
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
-            Browse respectfully curated matrimonial profiles, filtered to your
-            preferences. Each introduction begins with dignity and proceeds at
+            Profiles are shown only when both your preferences and theirs
+            mutually align — ensuring every connection is relevant and
+            respectful. Each introduction begins with dignity and proceeds at
             your pace.
           </p>
         </div>
 
-        {/* Demo notice */}
+        {/* Mutual matching notice */}
         <Alert className="mb-6 border-[#D6B77A]/30 bg-white/70 backdrop-blur-sm shadow-lux">
           <Info className="h-4 w-4 text-[#D6B77A]" />
-          <AlertTitle className="font-serif text-sm">A note on these results</AlertTitle>
+          <AlertTitle className="font-serif text-sm">
+            Mutual matching is active
+          </AlertTitle>
           <AlertDescription className="text-sm text-muted-foreground">
             {note ||
-              "All results shown here are clearly-labelled demonstration profiles. In production, only verified, approved member profiles would appear."}
+              "Profiles appear here only when both your declared preferences and theirs are satisfied by each other's profile. If no profiles are shown, try widening your preferences or check back as new verified members join."}
           </AlertDescription>
         </Alert>
 
@@ -364,7 +367,7 @@ export default function DiscoverView() {
             ))}
           </div>
         ) : matches.length === 0 ? (
-          <EmptyState />
+          <EmptyState note={note} />
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {matches.map((m, idx) => (
@@ -484,10 +487,23 @@ function MatchCard({
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card className="relative h-full bg-white border-[#D6B77A]/25 shadow-lux hover:shadow-lux-lg transition-shadow overflow-hidden">
+        {/* Mutual match badge (top-left) + Demo badge (top-right) */}
+        <div className="absolute top-3 left-3 z-10">
+          <Badge
+            className="text-[10px] uppercase tracking-wider border"
+            style={{
+              background: "linear-gradient(135deg, #E8D9B5, #D6B77A)",
+              color: "#111827",
+              borderColor: "rgba(248,231,176,0.4)",
+            }}
+          >
+            Mutual Match
+          </Badge>
+        </div>
         {match.isDemo && (
           <div className="absolute top-3 right-3 z-10">
             <Badge className="bg-[#F3EEE2] text-muted-foreground border border-[#D6B77A]/30 text-[10px] uppercase tracking-wider">
-              Demo profile
+              Demo
             </Badge>
           </div>
         )}
@@ -688,7 +704,7 @@ function Chip({
   );
 }
 
-function EmptyState() {
+function EmptyState({ note }: { note?: string }) {
   return (
     <Card className="bg-white border-[#D6B77A]/20 shadow-lux">
       <CardContent className="py-16 text-center">
@@ -696,12 +712,18 @@ function EmptyState() {
           <Search className="h-6 w-6 text-[#D6B77A]" />
         </div>
         <p className="font-serif text-xl text-foreground">
-          No members match your filters
+          No profiles match your mutual requirements
         </p>
-        <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-          Try widening your preferences — relax the age range or remove a district
-          filter to see more profiles.
+        <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+          {note ||
+            "Profiles are only shown when both your preferences and theirs align. Try widening your preferences, or check back as new verified members join the community."}
         </p>
+        <div className="mt-6 flex flex-col items-center gap-2 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">To see more profiles:</p>
+          <p>• Complete your profile with age, location, education, and profession</p>
+          <p>• Set your marriage preferences (age range, location, education)</p>
+          <p>• Widen your preferred age range or add more preferred locations</p>
+        </div>
       </CardContent>
     </Card>
   );
