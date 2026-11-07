@@ -38,10 +38,6 @@ const Hero3D = dynamic(() => import("@/components/garminas/Hero3D"), {
   ),
 });
 
-const VideoBackground = dynamic(
-  () => import("@/components/garminas/VideoBackground").then((m) => m.VideoBackground),
-  { ssr: false, loading: () => null }
-);
 const RomanticAudio = dynamic(
   () => import("@/components/garminas/RomanticAudio").then((m) => m.RomanticAudio),
   { ssr: false, loading: () => null }
@@ -125,22 +121,29 @@ export function HomeView() {
 
   return (
     <div>
-      {/* HERO — cinematic wedding video background with 3D rings as fallback */}
+      {/* HERO — cinematic 3D animation: golden rings, heart formation, champagne bubbles, sparkles */}
       <section className="relative min-h-[96vh] overflow-hidden flex flex-col">
-        {/* Base gradient (always present underneath everything) */}
+        {/* Base gradient (warm champagne ambience) */}
         <div
           className="absolute inset-0 z-0"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 35%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
+              "radial-gradient(ellipse at 50% 40%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
           }}
         />
-        {/* 3D scene as fallback layer — visible only if video doesn't load */}
+        {/* The rich 3D scene fills the entire hero */}
         <div className="absolute inset-0 z-0">
           <Hero3D className="h-full w-full" />
         </div>
-        {/* Cinematic wedding video background on top of the 3D scene */}
-        <VideoBackground className="absolute inset-0 z-[1]" />
+        {/* Soft ivory vignette over the upper text region for headline legibility */}
+        <div
+          className="absolute inset-x-0 top-0 z-10 pointer-events-none"
+          style={{
+            height: "50%",
+            background:
+              "linear-gradient(180deg, rgba(250,247,240,0.55) 0%, rgba(250,247,240,0.25) 60%, transparent 100%)",
+          }}
+        />
 
         {/* Top-right: ambient music toggle */}
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30">
@@ -159,7 +162,10 @@ export function HomeView() {
             </p>
             <h1
               className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.05] text-balance"
-              style={{ color: "var(--navy)" }}
+              style={{
+                color: "var(--navy)",
+                textShadow: "0 2px 24px rgba(250, 247, 240, 0.7)",
+              }}
             >
               Your Journey to
               <br />
@@ -167,7 +173,10 @@ export function HomeView() {
             </h1>
             <p
               className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed"
-              style={{ color: "var(--navy)", textShadow: "0 1px 12px rgba(250, 247, 240, 0.8)" }}
+              style={{
+                color: "var(--navy)",
+                textShadow: "0 1px 16px rgba(250, 247, 240, 0.85)",
+              }}
             >
               GarMinas brings eligible Ismailis connected to Gilgit-Baltistan
               together through a secure, sophisticated and respectful matchmaking
@@ -201,7 +210,7 @@ export function HomeView() {
         </div>
 
         {/* Spacer for visual breathing room at the bottom of the hero */}
-        <div className="relative z-10 h-[18vh] min-h-[120px]" />
+        <div className="relative z-10 h-[14vh] min-h-[100px]" />
 
         {/* Disclaimer pinned at the very bottom of hero */}
         <motion.p
