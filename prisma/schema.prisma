@@ -237,7 +237,7 @@ model Payment {
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount             Int      // PKR
   plan               String   @default("MONTHLY")
-  method             String   @default("BANK_TRANSFER") // BANK_TRANSFER | EASYPAISA | JAZZCASH | OTHER
+  method             String   @default("EASYPAISA") // EASYPAISA | JAZZCASH | SADAPAY | BANK_TRANSFER | CREDIT_CARD
   receiptPath        String?  // uploaded receipt image
   transactionRef     String?  // user-entered transaction ID
   status             String   @default("PENDING") // PENDING | VERIFIED | REJECTED

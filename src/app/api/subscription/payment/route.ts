@@ -4,9 +4,15 @@ import { db } from "@/lib/db";
 import { getCurrentUser, recordAudit } from "@/lib/auth";
 
 const PaymentSchema = z.object({
-  method: z.enum(["BANK_TRANSFER", "EASYPAISA", "JAZZCASH", "OTHER"]),
+  method: z.enum([
+    "EASYPAISA",
+    "JAZZCASH",
+    "SADAPAY",
+    "BANK_TRANSFER",
+    "CREDIT_CARD",
+  ]),
   transactionRef: z.string().min(3, "Transaction reference is required."),
-  receiptPath: z.string().optional(),
+  receiptPath: z.string().min(1, "Payment screenshot is required for verification."),
 });
 
 /**
