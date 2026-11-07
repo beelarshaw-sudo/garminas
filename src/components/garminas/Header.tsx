@@ -27,9 +27,10 @@ import { ViewKey } from "@/lib/garminas";
 
 const PUBLIC_NAV: { key: ViewKey; label: string }[] = [
   { key: "home", label: "Home" },
-  { key: "about", label: "About" },
+  { key: "discover", label: "Browse Profiles" },
+  { key: "help", label: "How It Works" },
   { key: "success-stories", label: "Success Stories" },
-  { key: "help", label: "Help" },
+  { key: "about", label: "About Us" },
 ];
 
 const MEMBER_NAV: { key: ViewKey; label: string }[] = [
@@ -54,10 +55,19 @@ export function Header() {
   const { session, loading, refresh } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Transparent at top → frosted glass when scrolled
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -90,6 +100,11 @@ export function Header() {
 
   function NavButton({ item }: { item: { key: ViewKey; label: string } }) {
     const active = view === item.key;
+    // When at top of page (transparent header over dark hero), text is white.
+    // When scrolled (frosted glass header), text is navy.
+    const idleColor = scrolled ? "text-muted-foreground" : "text-white/80";
+    const hoverColor = scrolled ? "hover:text-navy" : "hover:text-white";
+    const activeColor = scrolled ? "text-navy" : "text-white";
     return (
       <button
         onClick={() => {
@@ -98,11 +113,8 @@ export function Header() {
         }}
         className={cn(
           "relative px-3 py-2 text-sm font-medium transition-colors rounded-md",
-          active
-            ? "text-navy"
-            : "text-muted-foreground hover:text-navy"
+          active ? activeColor : `${idleColor} ${hoverColor}`
         )}
-        style={active ? { color: "var(--navy)" } : undefined}
       >
         {item.label}
         {active && (
@@ -122,14 +134,24 @@ export function Header() {
     setView("home");
   }
 
+  // Header style: transparent at top, frosted glass when scrolled
+  const headerStyle = scrolled
+    ? {
+        background: "rgba(250, 247, 240, 0.9)",
+        backdropFilter: "blur(16px) saturate(180%)",
+        WebkitBackdropFilter: "blur(16px) saturate(180%)",
+        borderColor: "rgba(214, 183, 122, 0.25)",
+        boxShadow: "0 1px 12px rgba(17,24,39,0.06)",
+      }
+    : {
+        background: "transparent",
+        borderColor: "transparent",
+      };
+
   return (
     <header
-      className="sticky top-0 z-50 w-full border-b"
-      style={{
-        background: "rgba(250, 247, 240, 0.85)",
-        backdropFilter: "blur(16px) saturate(180%)",
-        borderColor: "rgba(214, 183, 122, 0.25)",
-      }}
+      className="sticky top-0 z-50 w-full border-b transition-all duration-300"
+      style={headerStyle}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
@@ -152,10 +174,18 @@ export function Header() {
             </svg>
           </div>
           <div className="flex flex-col items-start leading-none">
-            <span className="font-serif text-xl font-semibold tracking-tight" style={{ color: "var(--navy)" }}>
+            <span
+              className="font-serif text-xl font-semibold tracking-tight transition-colors"
+              style={{ color: scrolled ? "#111827" : "#FAF7F0" }}
+            >
               GarMinas
             </span>
-            <span className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span
+              className="text-[9px] uppercase tracking-[0.18em] transition-colors"
+              style={{
+                color: scrolled ? "#6B6457" : "rgba(250,247,240,0.6)",
+              }}
+            >
               Matrimonial
             </span>
           </div>
@@ -226,13 +256,18 @@ export function Header() {
             </>
           ) : (
             <div className="hidden sm:flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setView("login")}>
-                Sign in
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setView("login")}
+                style={{ color: scrolled ? "#111827" : "#FAF7F0" }}
+              >
+                Login
               </Button>
               <Button
                 size="sm"
                 onClick={() => setView("register")}
-                className="text-navy"
+                className="text-navy shadow-lux"
                 style={{
                   background: "linear-gradient(135deg, #E8D9B5 0%, #D6B77A 50%, #B8964A 100%)",
                 }}

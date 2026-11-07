@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useNav } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -10,39 +10,52 @@ import {
   Shield,
   Lock,
   Users,
-  Sparkles,
   ArrowRight,
   CheckCircle2,
-  Bell,
-  HeartHandshake,
-  BookOpen,
+  Sparkles,
+  Search,
+  UserPlus,
+  HandHeart,
   ChevronRight,
 } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useRef } from "react";
 
-const Hero3D = dynamic(() => import("@/components/garminas/Hero3DCSS"), {
-  ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="relative h-32 w-32"
+// Lazy-load the heavy 3D scene as a separate chunk
+const CinematicHero3D = dynamic(
+  () => import("@/components/garminas/CinematicHero3D").then((m) => m.CinematicHero3D),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 40%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
+        }}
       >
-        <svg viewBox="0 0 100 100" className="h-full w-full">
-          <circle cx="38" cy="50" r="22" fill="none" stroke="#D6B77A" strokeWidth="3" opacity="0.6" />
-          <circle cx="62" cy="50" r="22" fill="none" stroke="#D6B77A" strokeWidth="3" opacity="0.6" />
-        </svg>
-      </motion.div>
-    </div>
-  ),
-});
-
-const RomanticAudio = dynamic(
-  () => import("@/components/garminas/RomanticAudio").then((m) => m.RomanticAudio),
-  { ssr: false, loading: () => null }
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          transition={{ duration: 1.5 }}
+          className="relative"
+        >
+          <svg viewBox="0 0 200 60" className="w-32 h-12">
+            <circle cx="70" cy="30" r="18" fill="none" stroke="#D6B77A" strokeWidth="1.5" opacity="0.5" />
+            <circle cx="130" cy="30" r="18" fill="none" stroke="#D6B77A" strokeWidth="1.5" opacity="0.5" />
+          </svg>
+        </motion.div>
+      </div>
+    ),
+  }
 );
 
+// ─── Section: Why Choose Us ────────────────────────────────────────────────
 const WHY = [
   {
     icon: Shield,
@@ -56,185 +69,484 @@ const WHY = [
   },
   {
     icon: Heart,
-    title: "Matrimonial-Only",
-    body: "GarMinas is not a dating application. Every member confirms a genuine intention to pursue marriage.",
+    title: "Genuine Intentions",
+    body: "Every member confirms a sincere intention to pursue marriage. This is not a casual dating application.",
   },
   {
-    icon: HeartHandshake,
-    title: "Family Involvement",
-    body: "Optional, authorized family participation — dignified, controlled, and respectful of community traditions.",
+    icon: Users,
+    title: "Cultural Understanding",
+    body: "Built for a community that values family, respect, and lifelong commitment — without assuming every member shares the same traditions.",
   },
 ];
 
+// ─── Section: How It Works ─────────────────────────────────────────────────
 const STEPS = [
   {
     n: "01",
-    title: "Register & Verify",
-    body: "Create your account with email and phone verification. Confirm your Ismaili community eligibility and matrimonial-only intention.",
+    icon: UserPlus,
+    title: "Create Your Profile",
+    body: "Build a thoughtful matrimonial profile with personal, educational, professional, and family sections. Complete verification to establish trust.",
   },
   {
     n: "02",
-    title: "Complete Your Profile",
-    body: "Build a thoughtful matrimonial profile across personal, educational, professional, family, and preference sections.",
+    icon: Search,
+    title: "Discover Compatible Individuals",
+    body: "Receive transparent, preference-based recommendations. Explore profiles with clear compatibility summaries and verified badges.",
   },
   {
     n: "03",
-    title: "Discover & Express Interest",
-    body: "Receive transparent, rules-based recommendations. Send a matrimonial proposal to a member whose preferences align with yours.",
+    icon: HandHeart,
+    title: "Build a Meaningful Connection",
+    body: "Send a matrimonial proposal. After acceptance, begin a respectful private conversation. Optionally involve trusted family members.",
+  },
+];
+
+// ─── Featured demo profiles (clearly labelled) ─────────────────────────────
+const FEATURED = [
+  {
+    name: "Aaliyah, 26",
+    location: "Karachi · Hunza",
+    profession: "Public Health",
+    education: "Master's",
+    about: "Public health researcher who values family, faith, and intentional living.",
   },
   {
-    n: "04",
-    title: "Connect with Dignity",
-    body: "After acceptance, begin a respectful private conversation. Optionally involve trusted family members in the introduction.",
+    name: "Daniyal, 30",
+    location: "Islamabad · Gilgit",
+    profession: "Software Engineer",
+    education: "Master's",
+    about: "Engineer who enjoys hiking and reading, seeking a marriage built on mutual respect.",
+  },
+  {
+    name: "Sana, 28",
+    location: "Lahore · Ghizer",
+    profession: "Educator",
+    education: "MPhil",
+    about: "University teacher pursuing education policy, looking for shared values and purpose.",
   },
 ];
 
 const FAQS = [
   {
-    q: "Who is GarMinas for?",
+    q: "Who is this platform for?",
     a: "GarMinas is exclusively for adults aged 18 and above who are connected to the Ismaili community of Gilgit-Baltistan and have a genuine intention to pursue marriage. It is not a dating application.",
   },
   {
     q: "How does verification work?",
-    a: "GarMinas uses multiple verification layers: email, mobile OTP, identity document review by an authorized reviewer, discreet Ismaili community eligibility verification through approved references, and profile/photograph moderation. Religious identity is never inferred from a name, location or appearance.",
+    a: "We use multiple verification layers: email, mobile OTP, identity document review by an authorized reviewer, discreet community eligibility verification through approved references, and profile/photograph moderation.",
   },
   {
     q: "Is my information private?",
-    a: "Yes. You control who can view your photographs, your profile, your family information, and whether you appear in search results. There is no public member directory and no search engine indexing. GarMinas never sells member information.",
+    a: "Yes. You control who can view your photographs, your profile, your family information, and whether you appear in search results. There is no public member directory and no search engine indexing.",
   },
   {
     q: "Can my family participate?",
     a: "Yes, optionally. You can authorize a trusted family representative with limited permissions to participate in selected introductions. You retain full control and can revoke authorization at any time.",
   },
-  {
-    q: "Does GarMinas guarantee marriage?",
-    a: "No. GarMinas facilitates respectful introductions between verified members. It does not guarantee marriage, compatibility, identity beyond the stated verification level, or the conduct of members.",
-  },
-  {
-    q: "How much does it cost?",
-    a: "Account registration, profile creation, verification, and basic matchmaking discovery are free. Verification badges are never sold. Future premium membership options may offer additional tools, but privacy and basic safety features will always remain free.",
-  },
 ];
 
 export function HomeView() {
   const { setView } = useNav();
+  const heroRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const heroTextOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  const heroTextY = useTransform(scrollYProgress, [0, 0.5], [0, -60]);
 
   return (
     <div>
-      {/* HERO — cinematic 3D animation: golden rings, heart formation, champagne bubbles, sparkles */}
-      <section className="relative min-h-[96vh] overflow-hidden flex flex-col">
-        {/* Base gradient (warm champagne ambience) */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 40%, #FAF7F0 0%, #F3EEE2 45%, #E9DFD0 100%)",
-          }}
-        />
-        {/* The rich 3D scene fills the entire hero */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          CINEMATIC HERO — Full-screen 3D architectural environment
+          The hero extends UP behind the transparent header (negative top margin)
+          so the navigation floats over the dark cinematic scene.
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section ref={heroRef} className="relative h-screen overflow-hidden" style={{ marginTop: "-4rem" }}>
+        {/* 3D scene fills the entire viewport */}
         <div className="absolute inset-0 z-0">
-          <Hero3D className="h-full w-full" />
+          <CinematicHero3D className="h-full w-full" />
         </div>
-        {/* Soft ivory vignette over the upper text region for headline legibility */}
+
+        {/* Ivory gradient at top + bottom for text legibility */}
         <div
-          className="absolute inset-x-0 top-0 z-10 pointer-events-none"
+          className="absolute inset-x-0 top-0 z-10 pointer-events-none h-1/2"
           style={{
-            height: "50%",
             background:
-              "linear-gradient(180deg, rgba(250,247,240,0.55) 0%, rgba(250,247,240,0.25) 60%, transparent 100%)",
+              "linear-gradient(180deg, rgba(250,247,240,0.45) 0%, rgba(250,247,240,0.15) 50%, transparent 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 pointer-events-none h-1/3"
+          style={{
+            background:
+              "linear-gradient(0deg, rgba(250,247,240,0.7) 0%, rgba(250,247,240,0.2) 60%, transparent 100%)",
           }}
         />
 
-        {/* Top-right: ambient music toggle */}
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30">
-          <RomanticAudio />
-        </div>
-
-        {/* Text content */}
-        <div className="relative z-20 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center pt-24 sm:pt-32 pb-10">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
+        {/* Hero content overlay */}
+        <motion.div
+          style={{ opacity: heroTextOpacity, y: heroTextY }}
+          className="relative z-20 flex h-full flex-col items-center justify-center px-4 text-center"
+        >
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ duration: 1, delay: 0.3 }}
+            className="mb-6 text-xs font-medium uppercase tracking-[0.35em]"
+            style={{ color: "#B8964A" }}
           >
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-4">
-              An exclusive Ismaili matrimonial community
-            </p>
-            <h1
-              className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.05] text-balance"
+            Where Two Journeys Become One
+          </motion.p>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.2, delay: 0.5, ease: "easeOut" }}
+            className="font-serif text-4xl font-semibold leading-[1.1] sm:text-5xl md:text-6xl lg:text-7xl"
+            style={{
+              color: "#FAF7F0",
+              textShadow: "0 4px 32px rgba(17,24,39,0.5), 0 2px 8px rgba(17,24,39,0.3)",
+              maxWidth: "900px",
+            }}
+          >
+            A Beautiful Beginning.
+            <br />
+            <span style={{ color: "#E8D9B5" }}>A Lifetime Together.</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.9 }}
+            className="mt-6 max-w-xl text-base leading-relaxed sm:text-lg"
+            style={{
+              color: "#F3EEE2",
+              textShadow: "0 2px 12px rgba(17,24,39,0.4)",
+            }}
+          >
+            Discover meaningful connections rooted in shared values, genuine
+            intentions, and the promise of lifelong companionship.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 1.2 }}
+            className="mt-8 flex flex-col items-center gap-3 sm:flex-row"
+          >
+            <Button
+              size="lg"
+              onClick={() => setView("register")}
+              className="shadow-lux-lg"
               style={{
-                color: "var(--navy)",
-                textShadow: "0 2px 24px rgba(250, 247, 240, 0.7)",
+                background: "linear-gradient(135deg, #E8D9B5 0%, #D6B77A 50%, #B8964A 100%)",
+                color: "#111827",
+                border: "1px solid rgba(248,231,176,0.4)",
               }}
             >
-              Your Journey to
-              <br />
-              <span className="text-gold-gradient">Forever</span> Begins Here.
-            </h1>
-            <p
-              className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed"
-              style={{
-                color: "var(--navy)",
-                textShadow: "0 1px 16px rgba(250, 247, 240, 0.85)",
-              }}
+              <Heart className="mr-2 h-4 w-4" />
+              Find Your Life Partner
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setView("about")}
+              className="border-white/30 bg-white/10 text-white backdrop-blur hover:bg-white/20"
             >
-              GarMinas brings eligible Ismailis connected to Gilgit-Baltistan
-              together through a secure, sophisticated and respectful matchmaking
-              experience — built on trust, privacy, and a genuine commitment to
-              marriage.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                size="lg"
-                onClick={() => setView("register")}
-                className="text-navy shadow-lux-lg"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #E8D9B5 0%, #D6B77A 50%, #B8964A 100%)",
-                }}
-              >
-                <Heart className="mr-2 h-4 w-4" />
-                Register Now
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => setView("about")}
-                className="border-gold bg-white/85 backdrop-blur"
-              >
-                Explore How It Works
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+              How It Works
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </motion.div>
-        </div>
 
-        {/* Spacer for visual breathing room at the bottom of the hero */}
-        <div className="relative z-10 h-[14vh] min-h-[100px]" />
+          {/* Trust indicator */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 1.6 }}
+            className="mt-8 flex items-center gap-6 text-xs"
+            style={{ color: "rgba(250,247,240,0.7)" }}
+          >
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              Verified profiles
+            </span>
+            <span className="hidden sm:flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              Privacy-first
+            </span>
+            <span className="hidden sm:flex items-center gap-1.5">
+              <Heart className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              Matrimonial-only
+            </span>
+          </motion.div>
+        </motion.div>
 
-        {/* Disclaimer pinned at the very bottom of hero */}
-        <motion.p
+        {/* Scroll indicator */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="relative z-20 mx-auto max-w-xl px-4 text-center text-xs text-muted-foreground mb-6"
+          transition={{ delay: 2 }}
+          className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2"
         >
-          GarMinas is exclusively intended for adult Ismailis connected to
-          Gilgit-Baltistan and is dedicated solely to matrimonial purposes.
-        </motion.p>
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="flex flex-col items-center gap-1"
+            style={{ color: "rgba(250,247,240,0.5)" }}
+          >
+            <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+            <ChevronRight className="h-4 w-4 rotate-90" />
+          </motion.div>
+        </motion.div>
       </section>
 
-      {/* WHY GARMINAS */}
-      <section className="py-20 sm:py-28 bg-lux-gradient">
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION A: Begin Your Journey — Profile discovery
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-lux-gradient py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-3">Why GarMinas</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold" style={{ color: "var(--navy)" }}>
-              Trust, Privacy, and Meaningful Connection
+          <div className="mb-12 text-center">
+            <p
+              className="mb-3 text-xs uppercase tracking-[0.25em]"
+              style={{ color: "#B8964A" }}
+            >
+              Begin Your Journey
+            </p>
+            <h2
+              className="font-serif text-3xl font-semibold sm:text-4xl"
+              style={{ color: "#111827" }}
+            >
+              Discover profiles rooted in shared values
             </h2>
-            <div className="mx-auto mt-4 h-px w-24" style={{ background: "linear-gradient(90deg, transparent, #D6B77A, transparent)" }} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          {/* Search/filter bar */}
+          <Card className="mx-auto max-w-3xl border-gold/30 bg-white/80 shadow-lux backdrop-blur">
+            <CardContent className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Age range
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="22"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <span className="text-muted-foreground">–</span>
+                  <input
+                    type="number"
+                    placeholder="35"
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Location
+                </label>
+                <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  <option>Any location</option>
+                  <option>Gilgit</option>
+                  <option>Hunza</option>
+                  <option>Karachi</option>
+                  <option>Islamabad</option>
+                  <option>Lahore</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  className="w-full"
+                  style={{
+                    background: "linear-gradient(135deg, #D6B77A, #B8964A)",
+                    color: "#111827",
+                  }}
+                  onClick={() => setView("discover")}
+                >
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Sign in to view verified member profiles with full compatibility details.
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION B: How It Works — Three steps
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-14 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+              How It Works
+            </p>
+            <h2
+              className="font-serif text-3xl font-semibold sm:text-4xl"
+              style={{ color: "#111827" }}
+            >
+              A structured, respectful path to marriage
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <motion.div
+                key={step.n}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+                className="relative text-center"
+              >
+                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full">
+                  <div
+                    className="flex h-full w-full items-center justify-center rounded-full"
+                    style={{
+                      background: "linear-gradient(135deg, #E8D9B5, #D6B77A)",
+                    }}
+                  >
+                    <step.icon className="h-6 w-6" style={{ color: "#111827" }} />
+                  </div>
+                </div>
+                <div
+                  className="mb-2 font-serif text-3xl font-bold"
+                  style={{ color: "rgba(214,183,122,0.4)" }}
+                >
+                  {step.n}
+                </div>
+                <h3
+                  className="mb-2 font-serif text-lg font-semibold"
+                  style={{ color: "#111827" }}
+                >
+                  {step.title}
+                </h3>
+                <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
+                  {step.body}
+                </p>
+                {i < STEPS.length - 1 && (
+                  <ChevronRight
+                    className="hidden md:block absolute -right-4 top-7 h-6 w-6"
+                    style={{ color: "rgba(214,183,122,0.3)" }}
+                  />
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION C: Featured Profiles
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-lux-gradient py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+              Featured Profiles
+            </p>
+            <h2
+              className="font-serif text-3xl font-semibold sm:text-4xl"
+              style={{ color: "#111827" }}
+            >
+              Members seeking meaningful connections
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {FEATURED.map((profile, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+              >
+                <Card className="h-full border-gold/30 bg-white shadow-lux transition-all hover:shadow-lux-lg">
+                  <CardContent className="p-6">
+                    {/* Avatar placeholder with initials */}
+                    <div
+                      className="mb-4 flex h-16 w-16 items-center justify-center rounded-full font-serif text-xl font-semibold"
+                      style={{
+                        background: "linear-gradient(135deg, #E8D9B5, #D6B77A)",
+                        color: "#111827",
+                      }}
+                    >
+                      {profile.name.split(",")[0][0]}
+                    </div>
+                    <div className="mb-1 flex items-center gap-2">
+                      <h3
+                        className="font-serif text-lg font-semibold"
+                        style={{ color: "#111827" }}
+                      >
+                        {profile.name}
+                      </h3>
+                      <CheckCircle2 className="h-4 w-4" style={{ color: "#D6B77A" }} />
+                    </div>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      {profile.location}
+                    </p>
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{ background: "rgba(214,183,122,0.15)", color: "#B8964A" }}
+                      >
+                        {profile.profession}
+                      </span>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{ background: "rgba(200,143,145,0.15)", color: "#A07072" }}
+                      >
+                        {profile.education}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {profile.about}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 w-full border-gold/40"
+                      onClick={() => setView("register")}
+                    >
+                      View profile
+                      <ArrowRight className="ml-1.5 h-3 w-3" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Button variant="ghost" onClick={() => setView("discover")}>
+              Discover more members
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Profile information shown with member consent. Photographs and detailed
+            information are visible only to verified, approved members.
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION D: Why Choose Us
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-navy-gradient py-20 sm:py-28 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-14 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.25em] text-white/60">
+              Why Choose Us
+            </p>
+            <h2 className="font-serif text-3xl font-semibold sm:text-4xl">
+              Trust, privacy, and cultural understanding
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {WHY.map((item, i) => (
               <motion.div
                 key={item.title}
@@ -243,187 +555,42 @@ export function HomeView() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
               >
-                <Card className="h-full shadow-lux border-gold/40 bg-white/80 backdrop-blur">
-                  <CardContent className="p-6">
-                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "linear-gradient(135deg, #E8D9B5, #D6B77A)" }}>
-                      <item.icon className="h-6 w-6" style={{ color: "var(--navy)" }} />
-                    </div>
-                    <h3 className="font-serif text-lg font-semibold mb-2" style={{ color: "var(--navy)" }}>
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="py-20 sm:py-28 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-3">How Matchmaking Works</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold" style={{ color: "var(--navy)" }}>
-              A Structured, Respectful Path to Marriage
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {STEPS.map((step, i) => (
-              <motion.div
-                key={step.n}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="relative"
-              >
-                <div className="font-serif text-5xl font-bold mb-3" style={{ color: "rgba(214, 183, 122, 0.5)" }}>
-                  {step.n}
-                </div>
-                <h3 className="font-serif text-lg font-semibold mb-2" style={{ color: "var(--navy)" }}>
-                  {step.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
-                {i < STEPS.length - 1 && (
-                  <ChevronRight className="hidden lg:block absolute -right-3 top-12 h-6 w-6 text-gold/40" />
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TRUST & VERIFICATION */}
-      <section className="py-20 sm:py-28 bg-navy-gradient">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-white">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-xs uppercase tracking-[0.25em] text-white/60 mb-3">Community Trust</p>
-              <h2 className="font-serif text-3xl sm:text-4xl font-semibold mb-4">
-                Verification that respects dignity
-              </h2>
-              <p className="text-white/70 leading-relaxed mb-6">
-                GarMinas establishes trust through multiple verification layers — without ever inferring religious identity from a name, location or appearance. Community eligibility is discreetly confirmed by authorized reviewers using approved references, never by exposing sensitive documents publicly.
-              </p>
-              <div className="space-y-3">
-                {[
-                  "Email & mobile OTP verification",
-                  "Identity document review by authorized reviewers",
-                  "Discreet Ismaili community eligibility verification",
-                  "Profile and photograph moderation before publication",
-                  "Clear, honest badges: Phone Verified, Identity Verified, Community Verified, Profile Approved",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: "var(--gold)" }} />
-                    <span className="text-sm text-white/80">{item}</span>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                  <div
+                    className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full"
+                    style={{ background: "linear-gradient(135deg, #E8D9B5, #D6B77A)" }}
+                  >
+                    <item.icon className="h-6 w-6" style={{ color: "#111827" }} />
                   </div>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                size="lg"
-                className="mt-6 border-white/30 text-white hover:bg-white/10"
-                onClick={() => setView("verify")}
-              >
-                Explore Verification
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="grid grid-cols-2 gap-4"
-            >
-              {[
-                { icon: Shield, label: "Identity Verified", desc: "Reviewed by authorized reviewer" },
-                { icon: Users, label: "Community Verified", desc: "Discreet eligibility confirmation" },
-                { icon: Lock, label: "Profile Approved", desc: "Moderated before publication" },
-                { icon: Bell, label: "Phone Verified", desc: "OTP-confirmed mobile" },
-              ].map((b) => (
-                <div key={b.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5">
-                  <b.icon className="h-7 w-7 mb-3" style={{ color: "var(--gold)" }} />
-                  <div className="font-serif text-base font-semibold">{b.label}</div>
-                  <div className="text-xs text-white/60 mt-1">{b.desc}</div>
+                  <h3 className="mb-2 font-serif text-lg font-semibold">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-white/70">{item.body}</p>
                 </div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRIVACY HIGHLIGHTS */}
-      <section className="py-20 sm:py-28 bg-lux-gradient">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-3">Privacy & Security</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold" style={{ color: "var(--navy)" }}>
-              Your privacy, in your hands
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              {
-                title: "Control your visibility",
-                body: "Decide who sees your photographs, your profile, and your family information. Temporarily hide your profile or pause for inactivity any time.",
-              },
-              {
-                title: "No public directory",
-                body: "There is no publicly searchable member directory. Profiles are only visible to other verified, approved members within the GarMinas community.",
-              },
-              {
-                title: "Never sold, never trained on",
-                body: "GarMinas never sells member information and never uses member photographs for AI training or marketing without separate explicit consent.",
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-              >
-                <Card className="h-full shadow-lux border-gold/40 bg-white">
-                  <CardContent className="p-6">
-                    <h3 className="font-serif text-lg font-semibold mb-2" style={{ color: "var(--navy)" }}>
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
-                  </CardContent>
-                </Card>
               </motion.div>
             ))}
           </div>
-          <div className="mt-10 text-center">
-            <Button variant="outline" size="lg" className="border-gold" onClick={() => setView("privacy")}>
-              Explore the Privacy Centre
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </section>
 
-      {/* SUCCESS STORIES PREVIEW */}
-      <section className="py-20 sm:py-28 bg-white">
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION E: Success Stories
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="bg-white py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-3">Featured Stories</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold" style={{ color: "var(--navy)" }}>
-              Stories of Forever
+          <div className="mb-12 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+              Success Stories
+            </p>
+            <h2
+              className="font-serif text-3xl font-semibold sm:text-4xl"
+              style={{ color: "#111827" }}
+            >
+              Stories of forever
             </h2>
-            <p className="mt-3 text-sm text-muted-foreground max-w-xl mx-auto">
-              Shared with the explicit consent of both individuals. Never automatically published.
+            <p className="mt-3 text-sm text-muted-foreground">
+              Shared with the explicit consent of both individuals.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {[
               {
                 couple: "A. & S.",
@@ -437,18 +604,25 @@ export function HomeView() {
               },
             ].map((s, i) => (
               <motion.div
-                key={s.couple}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
               >
-                <Card className="h-full shadow-lux border-gold/40">
+                <Card className="h-full border-gold/30 shadow-lux">
                   <CardContent className="p-8">
-                    <div className="font-serif text-4xl font-semibold text-gold-gradient mb-4">
+                    <div
+                      className="mb-4 font-serif text-4xl font-semibold"
+                      style={{
+                        background: "linear-gradient(135deg, #D6B77A, #B8964A)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      }}
+                    >
                       {s.couple}
                     </div>
-                    <p className="font-serif italic text-base text-muted-foreground leading-relaxed">
+                    <p className="font-serif text-base italic leading-relaxed text-muted-foreground">
                       “{s.excerpt}”
                     </p>
                   </CardContent>
@@ -456,85 +630,114 @@ export function HomeView() {
               </motion.div>
             ))}
           </div>
-          <div className="mt-10 text-center">
-            <Button variant="ghost" size="lg" onClick={() => setView("success-stories")}>
-              Read more stories
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </section>
 
-      {/* GUIDANCE PREVIEW */}
-      <section className="py-16 bg-lux-gradient">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <Sparkles className="mx-auto h-8 w-8 mb-3" style={{ color: "var(--gold)" }} />
-          <h2 className="font-serif text-2xl sm:text-3xl font-semibold mb-3" style={{ color: "var(--navy)" }}>
-            The Matrimonial Guidance Library
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-6">
-            Practical guidance on preparing a matrimonial profile, communicating respectfully, involving family, protecting your privacy, and recognizing matrimonial fraud.
-          </p>
-          <Button variant="outline" className="border-gold" onClick={() => setView("guidance")}>
-            <BookOpen className="mr-2 h-4 w-4" />
-            Explore the Library
-          </Button>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-20 sm:py-28 bg-white">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-3">Frequently Asked Questions</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold" style={{ color: "var(--navy)" }}>
-              Questions, answered
-            </h2>
-          </div>
-          <Accordion type="single" collapsible className="space-y-3">
-            {FAQS.map((f, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="rounded-xl border border-gold/30 bg-lux-gradient px-5">
-                <AccordionTrigger className="font-serif text-base font-medium hover:no-underline text-left" style={{ color: "var(--navy)" }}>
-                  {f.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground leading-relaxed">
-                  {f.a}
-                </AccordionContent>
-              </AccordionItem>
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION F: Final Call to Action — "Your Next Chapter Starts Here"
+          ═══════════════════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #111827 0%, #1A2233 100%)" }}>
+        {/* Architectural decorative arch silhouette */}
+        <div className="absolute inset-0 opacity-20" aria-hidden>
+          <svg viewBox="0 0 1200 400" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="archGold" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#D6B77A" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#D6B77A" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[200, 400, 600, 800, 1000].map((x) => (
+              <path
+                key={x}
+                d={`M ${x - 60} 400 L ${x - 60} 120 Q ${x} 40 ${x + 60} 120 L ${x + 60} 400`}
+                fill="none"
+                stroke="url(#archGold)"
+                strokeWidth="1.5"
+              />
             ))}
-          </Accordion>
+          </svg>
         </div>
-      </section>
 
-      {/* FINAL CTA */}
-      <section className="py-20 sm:py-28 bg-navy-gradient text-white">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold mb-4">
-              A Connection That Leads to Forever.
-            </h2>
-            <p className="text-white/70 leading-relaxed mb-8">
-              Join a respectful, verified, and private matrimonial community built for Ismailis connected to Gilgit-Baltistan.
-            </p>
+        <div className="relative z-10 mx-auto max-w-3xl px-4 text-center">
+          <Sparkles className="mx-auto mb-4 h-8 w-8" style={{ color: "#D6B77A" }} />
+          <h2 className="font-serif text-3xl font-semibold sm:text-4xl md:text-5xl text-white">
+            Your Next Chapter Starts Here.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/70">
+            Join a respectful, verified, and private matrimonial community built
+            for meaningful marriage proposals.
+          </p>
+          <div className="mt-8 flex justify-center">
             <Button
               size="lg"
               onClick={() => setView("register")}
-              className="text-navy shadow-lux-lg"
+              className="shadow-lux-lg"
               style={{
                 background: "linear-gradient(135deg, #E8D9B5 0%, #D6B77A 50%, #B8964A 100%)",
+                color: "#111827",
               }}
             >
               <Heart className="mr-2 h-4 w-4" />
-              Begin Your Journey
+              Create Your Account
             </Button>
-          </motion.div>
+          </div>
         </div>
       </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION G: Footer (minimal, elegant)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <footer className="border-t" style={{ borderColor: "rgba(214,183,122,0.25)", background: "#0F1419" }}>
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+            <div>
+              <div className="mb-4 flex items-center gap-2">
+                <svg viewBox="0 0 36 36" className="h-8 w-8">
+                  <circle cx="14" cy="18" r="8" fill="none" stroke="#D6B77A" strokeWidth="2.5" />
+                  <circle cx="22" cy="18" r="8" fill="none" stroke="#D6B77A" strokeWidth="2.5" />
+                </svg>
+                <span className="font-serif text-xl font-semibold text-white">GarMinas</span>
+              </div>
+              <p className="font-serif text-sm italic text-white/70">
+                A Connection That Leads to Forever.
+              </p>
+            </div>
+            <div>
+              <h4 className="mb-3 font-serif text-sm font-semibold text-white/90">Platform</h4>
+              <ul className="space-y-2 text-xs text-white/60">
+                <li><button onClick={() => setView("about")} className="hover:text-white">About Us</button></li>
+                <li><button onClick={() => setView("success-stories")} className="hover:text-white">Success Stories</button></li>
+                <li><button onClick={() => setView("help")} className="hover:text-white">How It Works</button></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 font-serif text-sm font-semibold text-white/90">Trust & Safety</h4>
+              <ul className="space-y-2 text-xs text-white/60">
+                <li><button onClick={() => setView("verify")} className="hover:text-white">Verification</button></li>
+                <li><button onClick={() => setView("safety")} className="hover:text-white">Safety Centre</button></li>
+                <li><button onClick={() => setView("privacy")} className="hover:text-white">Privacy Centre</button></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 font-serif text-sm font-semibold text-white/90">Account</h4>
+              <ul className="space-y-2 text-xs text-white/60">
+                <li><button onClick={() => setView("login")} className="hover:text-white">Login</button></li>
+                <li><button onClick={() => setView("register")} className="hover:text-white">Create Account</button></li>
+                <li><button onClick={() => setView("legal-terms")} className="hover:text-white">Terms & Policies</button></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-10 border-t border-white/10 pt-6">
+            <p className="text-[11px] leading-relaxed text-white/40">
+              © {new Date().getFullYear()} GarMinas. All rights reserved. GarMinas facilitates
+              introductions; it does not guarantee marriage, compatibility, identity beyond the
+              stated verification level, or the conduct of members. This platform is exclusively
+              intended for adult Ismailis connected to Gilgit-Baltistan and is dedicated solely
+              to matrimonial purposes.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
