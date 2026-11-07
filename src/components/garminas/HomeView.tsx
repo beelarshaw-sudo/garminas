@@ -158,29 +158,31 @@ export function HomeView() {
   return (
     <div>
       {/* ═══════════════════════════════════════════════════════════════════
-          CINEMATIC HERO — Full-screen 3D architectural environment
-          The hero extends UP behind the transparent header (negative top margin)
-          so the navigation floats over the dark cinematic scene.
+          CINEMATIC HERO — CSS 3D golden rings + heart + particles
+          Warm champagne background with two interlocking golden rings,
+          a breathing heart formation, champagne bubbles, rose petals,
+          and a sparkle star field.
           ═══════════════════════════════════════════════════════════════════ */}
-      <section ref={heroRef} className="relative h-screen overflow-hidden" style={{ marginTop: "-4rem" }}>
-        {/* 3D scene fills the entire viewport */}
+      <section
+        ref={heroRef}
+        className="relative h-screen overflow-hidden"
+        style={{
+          marginTop: "-4rem",
+          background:
+            "radial-gradient(ellipse at 50% 40%, #FAF7F0 0%, #F3EEE2 40%, #E9DFD0 100%)",
+        }}
+      >
+        {/* CSS 3D animation fills the entire viewport */}
         <div className="absolute inset-0 z-0">
           <CinematicHero3D className="h-full w-full" />
         </div>
 
-        {/* Ivory gradient at top + bottom for text legibility */}
+        {/* Soft vignette for text legibility (lighter, since rings are on light bg) */}
         <div
-          className="absolute inset-x-0 top-0 z-10 pointer-events-none h-1/2"
+          className="absolute inset-x-0 top-0 z-10 pointer-events-none h-2/3"
           style={{
             background:
-              "linear-gradient(180deg, rgba(250,247,240,0.45) 0%, rgba(250,247,240,0.15) 50%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-x-0 bottom-0 z-10 pointer-events-none h-1/3"
-          style={{
-            background:
-              "linear-gradient(0deg, rgba(250,247,240,0.7) 0%, rgba(250,247,240,0.2) 60%, transparent 100%)",
+              "linear-gradient(180deg, rgba(250,247,240,0.5) 0%, rgba(250,247,240,0.2) 50%, transparent 100%)",
           }}
         />
 
@@ -205,14 +207,25 @@ export function HomeView() {
             transition={{ duration: 1.2, delay: 0.5, ease: "easeOut" }}
             className="font-serif text-4xl font-semibold leading-[1.1] sm:text-5xl md:text-6xl lg:text-7xl"
             style={{
-              color: "#FAF7F0",
-              textShadow: "0 4px 32px rgba(17,24,39,0.5), 0 2px 8px rgba(17,24,39,0.3)",
+              color: "#111827",
+              textShadow:
+                "0 2px 24px rgba(250,247,240,0.7), 0 1px 8px rgba(250,247,240,0.5)",
               maxWidth: "900px",
             }}
           >
             A Beautiful Beginning.
             <br />
-            <span style={{ color: "#E8D9B5" }}>A Lifetime Together.</span>
+            <span
+              style={{
+                background:
+                  "linear-gradient(135deg, #D6B77A 0%, #B8964A 50%, #E8D9B5 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              A Lifetime Together.
+            </span>
           </motion.h1>
 
           <motion.p
@@ -221,8 +234,8 @@ export function HomeView() {
             transition={{ duration: 1, delay: 0.9 }}
             className="mt-6 max-w-xl text-base leading-relaxed sm:text-lg"
             style={{
-              color: "#F3EEE2",
-              textShadow: "0 2px 12px rgba(17,24,39,0.4)",
+              color: "#6B6457",
+              textShadow: "0 1px 12px rgba(250,247,240,0.6)",
             }}
           >
             Discover meaningful connections rooted in shared values, genuine
@@ -252,7 +265,7 @@ export function HomeView() {
               size="lg"
               variant="outline"
               onClick={() => setView("about")}
-              className="border-white/30 bg-white/10 text-white backdrop-blur hover:bg-white/20"
+              className="border-gold/50 bg-white/70 text-navy backdrop-blur hover:bg-white/90"
             >
               How It Works
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -265,18 +278,18 @@ export function HomeView() {
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 1.6 }}
             className="mt-8 flex items-center gap-6 text-xs"
-            style={{ color: "rgba(250,247,240,0.7)" }}
+            style={{ color: "#6B6457" }}
           >
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#B8964A" }} />
               Verified profiles
             </span>
             <span className="hidden sm:flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              <Shield className="h-3.5 w-3.5" style={{ color: "#B8964A" }} />
               Privacy-first
             </span>
             <span className="hidden sm:flex items-center gap-1.5">
-              <Heart className="h-3.5 w-3.5" style={{ color: "#D6B77A" }} />
+              <Heart className="h-3.5 w-3.5" style={{ color: "#B8964A" }} />
               Matrimonial-only
             </span>
           </motion.div>
@@ -293,7 +306,7 @@ export function HomeView() {
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             className="flex flex-col items-center gap-1"
-            style={{ color: "rgba(250,247,240,0.5)" }}
+            style={{ color: "rgba(107,100,87,0.5)" }}
           >
             <span className="text-[10px] uppercase tracking-widest">Scroll</span>
             <ChevronRight className="h-4 w-4 rotate-90" />

@@ -100,11 +100,11 @@ export function Header() {
 
   function NavButton({ item }: { item: { key: ViewKey; label: string } }) {
     const active = view === item.key;
-    // When at top of page (transparent header over dark hero), text is white.
-    // When scrolled (frosted glass header), text is navy.
-    const idleColor = scrolled ? "text-muted-foreground" : "text-white/80";
-    const hoverColor = scrolled ? "hover:text-navy" : "hover:text-white";
-    const activeColor = scrolled ? "text-navy" : "text-white";
+    // Both transparent (over light hero) and scrolled (frosted) use dark text
+    // since the hero background is light champagne.
+    const idleColor = "text-muted-foreground";
+    const hoverColor = "hover:text-navy";
+    const activeColor = "text-navy";
     return (
       <button
         onClick={() => {
@@ -175,16 +175,14 @@ export function Header() {
           </div>
           <div className="flex flex-col items-start leading-none">
             <span
-              className="font-serif text-xl font-semibold tracking-tight transition-colors"
-              style={{ color: scrolled ? "#111827" : "#FAF7F0" }}
+              className="font-serif text-xl font-semibold tracking-tight"
+              style={{ color: "#111827" }}
             >
               GarMinas
             </span>
             <span
-              className="text-[9px] uppercase tracking-[0.18em] transition-colors"
-              style={{
-                color: scrolled ? "#6B6457" : "rgba(250,247,240,0.6)",
-              }}
+              className="text-[9px] uppercase tracking-[0.18em]"
+              style={{ color: "#6B6457" }}
             >
               Matrimonial
             </span>
@@ -260,7 +258,7 @@ export function Header() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setView("login")}
-                style={{ color: scrolled ? "#111827" : "#FAF7F0" }}
+                style={{ color: "#111827" }}
               >
                 Login
               </Button>
