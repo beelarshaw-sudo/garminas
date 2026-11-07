@@ -26,10 +26,12 @@ export default function LoginView() {
     }
     setLoading(true);
     try {
+      // Trim whitespace to prevent copy-paste issues
+      const cleanEmail = email.trim();
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -44,6 +46,13 @@ export default function LoginView() {
       toast.error("Network error. Please try again.");
       setLoading(false);
     }
+  }
+
+  // One-click fill for demo credentials — eliminates typos
+  function fillDemo(demoEmail: string, demoPassword: string) {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    toast.success("Demo credentials filled. Click Sign in to continue.");
   }
 
   return (
@@ -133,21 +142,29 @@ export default function LoginView() {
           <Separator className="bg-[#D6B77A]/20" />
           <CardFooter className="flex flex-col gap-3 pt-4">
             <div className="w-full rounded-md border border-[#D6B77A]/20 bg-white/5 p-3 text-xs text-ivory/80">
-              <div className="mb-1 flex items-center gap-1.5 text-[#D6B77A] font-medium">
-                <ShieldCheck className="h-3.5 w-3.5" /> Demo credentials
+              <div className="mb-2 flex items-center gap-1.5 text-[#D6B77A] font-medium">
+                <ShieldCheck className="h-3.5 w-3.5" /> Demo credentials — click to fill
               </div>
-              <p>
+              <button
+                type="button"
+                onClick={() => fillDemo("admin@garminas.demo", "GarMinas@Admin2026")}
+                className="block w-full text-left rounded p-1.5 hover:bg-white/10 transition-colors"
+              >
                 <span className="text-ivory/60">Admin:</span>{" "}
-                <span className="font-mono">admin@garminas.demo</span>{" "}
-                /{" "}
-                <span className="font-mono">GarMinas@Admin2026</span>
-              </p>
-              <p>
+                <span className="font-mono text-ivory/90">admin@garminas.demo</span>
+                <span className="text-ivory/40"> / </span>
+                <span className="font-mono text-ivory/90">GarMinas@Admin2026</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemo("member@garminas.demo", "GarMinas@Member2026")}
+                className="block w-full text-left rounded p-1.5 hover:bg-white/10 transition-colors"
+              >
                 <span className="text-ivory/60">Member:</span>{" "}
-                <span className="font-mono">member@garminas.demo</span>{" "}
-                /{" "}
-                <span className="font-mono">GarMinas@Member2026</span>
-              </p>
+                <span className="font-mono text-ivory/90">member@garminas.demo</span>
+                <span className="text-ivory/40"> / </span>
+                <span className="font-mono text-ivory/90">GarMinas@Member2026</span>
+              </button>
             </div>
             <p className="text-center text-sm text-ivory/70">
               New to GarMinas?{" "}

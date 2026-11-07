@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { verifyPassword, createSession, rateLimit, recordAudit } from "@/lib/auth";
 
 const LoginSchema = z.object({
-  email: z.string().email(),
+  // Trim + lowercase email before validation so copy-paste whitespace
+  // and case variations don't cause "Invalid email or password" errors.
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
 
@@ -20,11 +22,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 422 });
   }
   const { email, password } = parsed.data;
+  // email is already trimmed + lowercased by the Zod schema above
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   // Rate limit: 5 attempts per 15 minutes per IP+email
-  const rl = rateLimit(`login:${ip}:${email.toLowerCase()}`, 5, 15 * 60 * 1000);
+  const rl = rateLimit(`login:${ip}:${email}`, 5, 15 * 60 * 1000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many login attempts. Please try again later." },
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const user = await db.user.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { email },
   });
   if (!user) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
