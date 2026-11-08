@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import {
-  DEMO_PROFILES,
-  VERIFICATION_BADGES,
-} from "@/lib/garminas";
+import { VERIFICATION_BADGES } from "@/lib/garminas";
 import { computeCompatibility, isMutualMatch } from "@/lib/matchmaking";
 
 interface DiscoverMatch {
@@ -241,92 +238,19 @@ export async function GET(req: NextRequest) {
   // Sort by compatibility score (highest first)
   realMatches.sort((a, b) => b.compatibility - a.compatibility);
 
-  // ── Demo profiles: also subject to mutual matching ────────────────────
-  // Demo profiles are only shown if they ALSO pass the mutual match check.
-  // They are clearly labelled as DEMO so members know they're sample data.
-  let demoMatches: DiscoverMatch[] = [];
-  if (realMatches.length < 3) {
-    demoMatches = DEMO_PROFILES.filter((p) => p.userId !== sess.userId)
-      .filter((p) => {
-        // Apply manual search filters
-        if (ageMin && p.age < Number(ageMin)) return false;
-        if (ageMax && p.age > Number(ageMax)) return false;
-        if (district && p.district !== district) return false;
-        if (education && p.education !== education) return false;
-        if (profession && !p.profession.includes(profession)) return false;
-        if (maritalStatus && p.maritalStatus !== maritalStatus) return false;
-        if (query) {
-          const q = query.toLowerCase();
-          const hay = `${p.fullName} ${p.city} ${p.district} ${p.profession}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      })
-      .filter((p) => {
-        // ── Apply mutual match check to demo profiles too ──
-        const candidateAttrs = {
-          age: p.age,
-          city: p.city,
-          district: p.district,
-          education: p.education,
-          profession: p.profession,
-          maritalStatus: p.maritalStatus,
-        };
-        const candidatePrefs = {
-          preferredAgeMin: p.preferences.preferredAgeMin,
-          preferredAgeMax: p.preferences.preferredAgeMax,
-          preferredLocation: p.preferences.preferredLocation,
-          educationPrefs: p.preferences.educationPrefs,
-          professionPrefs: p.preferences.professionPrefs,
-          maritalStatusPrefs: ["Never married"], // demo default
-        };
-        const mutual = isMutualMatch(
-          seekerPrefs,
-          seekerAttrs,
-          candidatePrefs,
-          candidateAttrs
-        );
-        return mutual.isMutualMatch;
-      })
-      .map((p) => {
-        const c = computeCompatibility(seekerPrefs, p);
-        return {
-          profileId: p.id,
-          userId: p.userId,
-          fullName: p.fullName,
-          age: p.age,
-          gender: p.gender,
-          city: p.city,
-          district: p.district,
-          profession: p.profession,
-          education: p.education,
-          maritalStatus: p.maritalStatus,
-          aboutMe: p.aboutMe,
-          compatibility: c.score,
-          compatibilityFactors: c.factors,
-          isMutualMatch: true,
-          badges: p.badges.map(
-            (b) => VERIFICATION_BADGES.find((vb) => vb.key === b)?.label ?? b
-          ),
-          isDemo: true,
-        };
-      });
-    demoMatches.sort((a, b) => b.compatibility - a.compatibility);
-  }
-
   // ── Build the response ────────────────────────────────────────────────
-  const allMatches = [...realMatches, ...demoMatches];
+  const allMatches = [...realMatches];
 
   let note: string;
   if (!hasSeekerPrefs) {
     note =
-      "You haven't set your marriage preferences yet. Visit Edit Profile → Marriage Preferences to receive matched recommendations. Until then, only profiles that are open to all members are shown.";
+      "You haven't set your marriage preferences yet. Visit Edit Profile → Marriage Preferences to receive matched recommendations.";
   } else if (allMatches.length === 0) {
     note =
-      "No profiles currently match your mutual requirements. Profiles are only shown when both your preferences and theirs align. Try widening your preferences, or check back as new verified members join.";
+      "No profiles currently match your mutual requirements. Profiles are only shown when both your preferences and theirs align. Try widening your preferences, or check back as new verified members join the community.";
   } else {
     note =
-      "Profiles shown only when both your preferences and theirs mutually align. Profiles marked DEMO are clearly-labelled demonstration data.";
+      "Profiles shown only when both your preferences and theirs mutually align.";
   }
 
   return NextResponse.json({

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { Loader2, Lock, Mail, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,13 +46,6 @@ export default function LoginView() {
       toast.error("Network error. Please try again.");
       setLoading(false);
     }
-  }
-
-  // One-click fill for demo credentials — eliminates typos
-  function fillDemo(demoEmail: string, demoPassword: string) {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    toast.success("Demo credentials filled. Click Sign in to continue.");
   }
 
   return (
@@ -141,31 +134,6 @@ export default function LoginView() {
           </CardContent>
           <Separator className="bg-[#D6B77A]/20" />
           <CardFooter className="flex flex-col gap-3 pt-4">
-            <div className="w-full rounded-md border border-[#D6B77A]/20 bg-white/5 p-3 text-xs text-ivory/80">
-              <div className="mb-2 flex items-center gap-1.5 text-[#D6B77A] font-medium">
-                <ShieldCheck className="h-3.5 w-3.5" /> Demo credentials — click to fill
-              </div>
-              <button
-                type="button"
-                onClick={() => fillDemo("admin@garminas.demo", "GarMinas@Admin2026")}
-                className="block w-full text-left rounded p-1.5 hover:bg-white/10 transition-colors"
-              >
-                <span className="text-ivory/60">Admin:</span>{" "}
-                <span className="font-mono text-ivory/90">admin@garminas.demo</span>
-                <span className="text-ivory/40"> / </span>
-                <span className="font-mono text-ivory/90">GarMinas@Admin2026</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemo("member@garminas.demo", "GarMinas@Member2026")}
-                className="block w-full text-left rounded p-1.5 hover:bg-white/10 transition-colors"
-              >
-                <span className="text-ivory/60">Member:</span>{" "}
-                <span className="font-mono text-ivory/90">member@garminas.demo</span>
-                <span className="text-ivory/40"> / </span>
-                <span className="font-mono text-ivory/90">GarMinas@Member2026</span>
-              </button>
-            </div>
             <p className="text-center text-sm text-ivory/70">
               New to GarMinas?{" "}
               <button
