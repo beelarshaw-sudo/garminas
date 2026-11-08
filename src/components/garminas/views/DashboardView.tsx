@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertCircle,
   Bell,
   CreditCard,
   CheckCircle2,
   Clock,
+  FileWarning,
   Heart,
   HelpCircle,
   LifeBuoy,
@@ -17,6 +19,7 @@ import {
   Sparkles,
   UserCog,
   Users,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,8 @@ interface MemberSession {
   profileComplete: number;
   fullName?: string;
   profileId?: string;
+  applicationStatus?: string;
+  communityVerificationStatus?: string;
   verification?: {
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -238,6 +243,20 @@ export default function DashboardView() {
               <span className="text-sm">Loading subscription status…</span>
             </CardContent>
           </Card>
+        )}
+
+        {/* Community verification status card */}
+        <CommunityVerificationCard
+          status={session.communityVerificationStatus}
+          onAction={() => setView("community-verification")}
+        />
+
+        {/* Application status card (only when not yet approved) */}
+        {!session.profileApproved && (
+          <ApplicationStatusCard
+            status={session.applicationStatus}
+            onCompleteProfile={() => setView("profile-edit")}
+          />
         )}
 
         {/* Stats grid */}
@@ -486,6 +505,206 @@ function SubscriptionStatusCard({
           >
             <CreditCard className="h-4 w-4" />
             {isPending ? "View subscription" : "Activate Subscription"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type CommunityVerificationStatus =
+  | "NOT_SUBMITTED"
+  | "PENDING_REVIEW"
+  | "VERIFIED"
+  | "ADDITIONAL_INFO_REQUIRED"
+  | "REJECTED";
+
+function CommunityVerificationCard({
+  status,
+  onAction,
+}: {
+  status: string | undefined;
+  onAction: () => void;
+}) {
+  const s = (status ?? "NOT_SUBMITTED") as CommunityVerificationStatus;
+
+  const config: Record<
+    CommunityVerificationStatus,
+    {
+      tone: string;
+      icon: React.ComponentType<{ className?: string }>;
+      iconClass: string;
+      title: string;
+      description: string;
+      action?: string;
+    }
+  > = {
+    NOT_SUBMITTED: {
+      tone: "border-rose-300",
+      icon: Users,
+      iconClass: "bg-rose-500/10 text-rose-600 ring-rose-300/40",
+      title: "Community verification not submitted",
+      description:
+        "Confirm your community background so members can trust your profile. This is required before your application can be reviewed.",
+      action: "Submit Verification",
+    },
+    PENDING_REVIEW: {
+      tone: "border-amber-300",
+      icon: Clock,
+      iconClass: "bg-amber-500/10 text-amber-600 ring-amber-300/40",
+      title: "Verification under review",
+      description:
+        "Our community team is reviewing your submission. You will be notified once a decision is made.",
+    },
+    VERIFIED: {
+      tone: "border-emerald-300",
+      icon: CheckCircle2,
+      iconClass: "bg-emerald-500/10 text-emerald-600 ring-emerald-300/40",
+      title: "Community verified",
+      description:
+        "Your community background has been verified. Thank you for strengthening trust on GarMinas.",
+    },
+    ADDITIONAL_INFO_REQUIRED: {
+      tone: "border-amber-400",
+      icon: FileWarning,
+      iconClass: "bg-amber-500/10 text-amber-600 ring-amber-400/40",
+      title: "Additional information required",
+      description:
+        "We need a bit more detail to complete your community verification. Please update your submission with the requested information.",
+      action: "Update Verification",
+    },
+    REJECTED: {
+      tone: "border-red-400",
+      icon: XCircle,
+      iconClass: "bg-red-500/10 text-red-600 ring-red-400/40",
+      title: "Verification rejected",
+      description:
+        "Your community verification was not approved. Please review the guidance and resubmit with accurate, supporting information.",
+      action: "Resubmit",
+    },
+  };
+
+  const c = config[s] ?? config.NOT_SUBMITTED;
+  const Icon = c.icon;
+
+  return (
+    <Card className={`mb-8 bg-white shadow-lux ${c.tone}`}>
+      <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-1 ${c.iconClass}`}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-serif text-lg text-foreground">{c.title}</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+              {c.description}
+            </p>
+          </div>
+        </div>
+        {c.action && (
+          <Button
+            onClick={onAction}
+            className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] shrink-0"
+          >
+            {s === "VERIFIED" ? (
+              <ShieldCheck className="h-4 w-4" />
+            ) : (
+              <Users className="h-4 w-4" />
+            )}
+            {c.action}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type ApplicationStatus = "NOT_STARTED" | "PENDING" | "APPROVED" | "REJECTED";
+
+function ApplicationStatusCard({
+  status,
+  onCompleteProfile,
+}: {
+  status: string | undefined;
+  onCompleteProfile: () => void;
+}) {
+  const s = (status ?? "NOT_STARTED") as ApplicationStatus;
+
+  const config: Record<
+    ApplicationStatus,
+    {
+      tone: string;
+      icon: React.ComponentType<{ className?: string }>;
+      iconClass: string;
+      title: string;
+      description: string;
+      action?: string;
+    }
+  > = {
+    NOT_STARTED: {
+      tone: "border-[#D6B77A]/30",
+      icon: UserCog,
+      iconClass: "bg-[#D6B77A]/15 text-[#D6B77A] ring-[#D6B77A]/30",
+      title: "Complete your profile to apply",
+      description:
+        "Fill in your profile details, photos, and preferences. Once complete, you can submit your application for review.",
+      action: "Complete profile",
+    },
+    PENDING: {
+      tone: "border-amber-300",
+      icon: Clock,
+      iconClass: "bg-amber-500/10 text-amber-600 ring-amber-300/40",
+      title: "Application under review",
+      description:
+        "Your profile application is being reviewed by our team. You will be notified once it has been approved.",
+    },
+    APPROVED: {
+      tone: "border-emerald-300",
+      icon: CheckCircle2,
+      iconClass: "bg-emerald-500/10 text-emerald-600 ring-emerald-300/40",
+      title: "Profile approved",
+      description:
+        "Your profile has been approved. You can now discover members and send proposals.",
+    },
+    REJECTED: {
+      tone: "border-red-400",
+      icon: AlertCircle,
+      iconClass: "bg-red-500/10 text-red-600 ring-red-400/40",
+      title: "Application not approved",
+      description:
+        "Your profile application was not approved. Please review the feedback, update your profile, and resubmit when ready.",
+      action: "Update profile",
+    },
+  };
+
+  const c = config[s] ?? config.NOT_STARTED;
+  const Icon = c.icon;
+
+  return (
+    <Card className={`mb-8 bg-white shadow-lux ${c.tone}`}>
+      <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-1 ${c.iconClass}`}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-serif text-lg text-foreground">{c.title}</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+              {c.description}
+            </p>
+          </div>
+        </div>
+        {c.action && (
+          <Button
+            onClick={onCompleteProfile}
+            className="bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] shrink-0"
+          >
+            <UserCog className="h-4 w-4" />
+            {c.action}
           </Button>
         )}
       </CardContent>

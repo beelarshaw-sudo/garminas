@@ -21,6 +21,7 @@ import {
   Smartphone,
   Wallet,
   Building2,
+  Globe2,
 } from "lucide-react";
 import {
   Accordion,
@@ -109,21 +110,21 @@ const STEPS = [
 const FEATURED = [
   {
     name: "Aaliyah, 26",
-    location: "Karachi · Hunza",
+    location: "Karachi · Pakistan",
     profession: "Public Health",
     education: "Master's",
     about: "Public health researcher who values family, faith, and intentional living.",
   },
   {
     name: "Daniyal, 30",
-    location: "Islamabad · Gilgit",
+    location: "Toronto · Canada",
     profession: "Software Engineer",
     education: "Master's",
     about: "Engineer who enjoys hiking and reading, seeking a marriage built on mutual respect.",
   },
   {
     name: "Sana, 28",
-    location: "Lahore · Ghizer",
+    location: "London · United Kingdom",
     profession: "Educator",
     education: "MPhil",
     about: "University teacher pursuing education policy, looking for shared values and purpose.",
@@ -133,7 +134,7 @@ const FEATURED = [
 const FAQS = [
   {
     q: "Who is this platform for?",
-    a: "GarMinas is exclusively for adults aged 18 and above who are connected to the Ismaili community of Gilgit-Baltistan and have a genuine intention to pursue marriage. It is not a dating application.",
+    a: "GarMinas is exclusively for adults aged 18 and above who belong to the global Ismaili community and have a genuine intention to pursue marriage. It is not a dating application.",
   },
   {
     q: "How does verification work?",
@@ -274,6 +275,22 @@ export function HomeView() {
               How It Works
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+          </motion.div>
+
+          {/* Global trust indicator */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 1.4 }}
+            className="mt-6 flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium backdrop-blur"
+            style={{
+              borderColor: "rgba(184,150,74,0.35)",
+              background: "rgba(255,255,255,0.55)",
+              color: "#6B6457",
+            }}
+          >
+            <Globe2 className="h-3.5 w-3.5" style={{ color: "#B8964A" }} />
+            Trusted by Ismailis in 30+ countries
           </motion.div>
 
           {/* Trust indicator */}
@@ -490,11 +507,12 @@ export function HomeView() {
                 </label>
                 <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
                   <option>Any location</option>
-                  <option>Gilgit</option>
-                  <option>Hunza</option>
-                  <option>Karachi</option>
-                  <option>Islamabad</option>
-                  <option>Lahore</option>
+                  <option>Karachi, Pakistan</option>
+                  <option>Toronto, Canada</option>
+                  <option>London, UK</option>
+                  <option>Dubai, UAE</option>
+                  <option>Lisbon, Portugal</option>
+                  <option>Nairobi, Kenya</option>
                 </select>
               </div>
               <div className="flex items-end">
@@ -874,8 +892,8 @@ export function HomeView() {
               © {new Date().getFullYear()} GarMinas. All rights reserved. GarMinas facilitates
               introductions; it does not guarantee marriage, compatibility, identity beyond the
               stated verification level, or the conduct of members. This platform is exclusively
-              intended for adult Ismailis connected to Gilgit-Baltistan and is dedicated solely
-              to matrimonial purposes.
+              intended for adult Ismailis worldwide and is dedicated solely to matrimonial
+              purposes.
             </p>
           </div>
         </div>

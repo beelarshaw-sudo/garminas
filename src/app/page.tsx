@@ -97,6 +97,10 @@ const GuidanceView = dynamic(
   () => import("@/components/garminas/views/GuidanceView"),
   { ssr: false, loading: () => <ViewLoader /> }
 );
+const CommunityVerificationView = dynamic(
+  () => import("@/components/garminas/views/CommunityVerificationView"),
+  { ssr: false, loading: () => <ViewLoader /> }
+);
 
 function ViewLoader() {
   return (
@@ -126,6 +130,7 @@ const MEMBER_ONLY_VIEWS = [
   "messages",
   "family",
   "verify",
+  "community-verification",
   "privacy",
   "subscription",
   "notifications",
@@ -273,6 +278,8 @@ export default function Page() {
         return <FamilyView />;
       case "verify":
         return <VerifyView />;
+      case "community-verification":
+        return <CommunityVerificationView />;
       case "privacy":
         return <PrivacyView />;
       case "subscription":

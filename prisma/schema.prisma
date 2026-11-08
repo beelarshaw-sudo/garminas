@@ -38,13 +38,26 @@ model User {
   isInactivityPaused  Boolean  @default(false)
   // Account type: INDIVIDUAL (searching for self) or PARENT (searching for child)
   accountType         String   @default("INDIVIDUAL") // INDIVIDUAL | PARENT
-  // Subscription (5000 PKR / month)
+  // ── Global fields (international expansion) ──
+  country             String?  // ISO country code (e.g. "PK", "US", "GB")
+  nationality         String?  // Country of nationality
+  region              String?  // State / province / region
+  callingCode         String?  // International phone calling code (e.g. "+92")
+  currency            String?  // User's display currency (e.g. "PKR", "USD")
+  // Subscription (5000 PKR / month base price)
   subscriptionStatus  String   @default("NONE") // NONE | PENDING | ACTIVE | EXPIRED | CANCELLED
   subscriptionPlan    String   @default("MONTHLY") // MONTHLY
-  subscriptionAmount  Int      @default(5000) // PKR
+  subscriptionAmount  Int      @default(5000) // Base PKR amount
+  subscriptionCurrency String? // Currency used for the payment
+  subscriptionAmountLocal Int? // Amount paid in local currency
+  subscriptionExchangeRate Float? // Exchange rate at time of payment
   subscriptionStartsAt DateTime?
   subscriptionExpiresAt DateTime?
   subscriptionPaymentRef String? // receipt filename or transaction ID
+  // Matrimonial application status (separate from subscription)
+  applicationStatus   String   @default("NOT_STARTED") // NOT_STARTED | PENDING | APPROVED | REJECTED
+  // Ismaili community verification status
+  communityVerificationStatus String @default("NOT_SUBMITTED") // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | ADDITIONAL_INFO_REQUIRED | REJECTED
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -61,6 +74,7 @@ model User {
   sessionsList        UserSession[]
   documents           VerificationDocument[]
   payments            Payment[]
+  communityVerification CommunityVerification?
 }
 
 model Session {
@@ -216,7 +230,10 @@ model VerificationDocument {
   // Direct link to the user who uploaded (for registration documents)
   userId             String?
   user               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type               String   // id_card_front | id_card_back | electricity_bill | community_reference | selfie
+  // Link to community verification submission
+  communityVerificationId String?
+  communityVerification CommunityVerification? @relation(fields: [communityVerificationId], references: [id], onDelete: Cascade)
+  type               String   // id_card_front | id_card_back | electricity_bill | community_photo | community_document | additional_evidence | payment_receipt | selfie
   filePath           String   // local path or private object storage key
   mimeType           String
   uploadedAt         DateTime @default(now())
@@ -235,7 +252,10 @@ model Payment {
   id                 String   @id @default(cuid())
   userId             String
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount             Int      // PKR
+  amount             Int      // Base PKR amount (always 5000)
+  amountLocal        Int?     // Amount in the user's local currency
+  currency           String?  // Currency code for the payment (e.g. "USD", "AED")
+  exchangeRate       Float?   // Exchange rate PKR→currency at time of payment
   plan               String   @default("MONTHLY")
   method             String   @default("EASYPAISA") // EASYPAISA | JAZZCASH | SADAPAY | BANK_TRANSFER | CREDIT_CARD
   receiptPath        String?  // uploaded receipt image
@@ -245,6 +265,35 @@ model Payment {
   verifiedAt         DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  Ismaili Community Verification
+// ─────────────────────────────────────────────
+
+model CommunityVerification {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             String   @default("NOT_SUBMITTED") // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | ADDITIONAL_INFO_REQUIRED | REJECTED
+  // Option A: Photograph in Ismaili community setting
+  photoPath          String?  // path to uploaded community photo
+  photoDescription   String?  // applicant's description of the photo
+  // Option B: Supporting documentation
+  documentPath       String?  // path to uploaded community document
+  documentType       String?  // type of document
+  // Option C: Additional verification
+  additionalEvidencePath String? // additional photo/document
+  writtenExplanation String?  // applicant's written explanation
+  // Admin review
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  reviewNote         String?
+  additionalInfoRequested String? // admin's request for additional info
+  submittedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  documents          VerificationDocument[]
 }
 
 // ─────────────────────────────────────────────

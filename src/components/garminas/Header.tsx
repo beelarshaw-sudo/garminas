@@ -43,6 +43,7 @@ const MEMBER_NAV: { key: ViewKey; label: string }[] = [
 const ACCOUNT_NAV: { key: ViewKey; label: string }[] = [
   { key: "profile-edit", label: "Edit Profile" },
   { key: "verify", label: "Verification" },
+  { key: "community-verification", label: "Community Verification" },
   { key: "family", label: "Family" },
   { key: "subscription", label: "Subscription" },
   { key: "privacy", label: "Privacy Centre" },

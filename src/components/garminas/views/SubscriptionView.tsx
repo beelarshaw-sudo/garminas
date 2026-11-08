@@ -23,6 +23,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { COUNTRIES, BASE_PRICE_PKR } from "@/lib/countries";
 
 type PaymentMethod = "EASYPAISA" | "JAZZCASH" | "SADAPAY" | "BANK_TRANSFER" | "CREDIT_CARD";
 
@@ -109,6 +117,35 @@ interface UploadResponse {
   error?: string;
 }
 
+interface ExchangeRatesResponse {
+  base: string;
+  basePrice: number;
+  rates: Record<string, number>;
+}
+
+interface SessionResponse {
+  session: {
+    currency?: string;
+    country?: string | null;
+  } | null;
+}
+
+/**
+ * Format a converted price in the given currency.
+ * - PKR: "5,000 PKR"
+ * - USD: "$18"
+ * - GBP: "£14"
+ */
+function formatLocalPrice(amountPkr: number, currency: string, rate: number): string {
+  if (currency === "PKR") {
+    return `${amountPkr.toLocaleString("en-PK")} PKR`;
+  }
+  const country = COUNTRIES.find((c) => c.currency === currency);
+  const symbol = country?.currencySymbol ?? "";
+  const localAmount = Math.round(amountPkr * rate);
+  return `${symbol}${localAmount.toLocaleString("en-US")}`;
+}
+
 export default function SubscriptionView() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("EASYPAISA");
   const [transactionRef, setTransactionRef] = useState("");
@@ -121,6 +158,13 @@ export default function SubscriptionView() {
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Multicurrency state
+  const [rates, setRates] = useState<Record<string, number>>({ PKR: 1 });
+  const [basePrice, setBasePrice] = useState<number>(BASE_PRICE_PKR);
+  const [currency, setCurrency] = useState<string>("PKR");
+  const [ratesLoading, setRatesLoading] = useState(true);
+
+  // Fetch subscription/payment status, exchange rates, and user session on mount.
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/subscription/status");
@@ -138,6 +182,33 @@ export default function SubscriptionView() {
 
   useEffect(() => {
     fetchStatus();
+    let fetchedRates: Record<string, number> = {};
+    (async () => {
+      try {
+        const [ratesRes, sessRes] = await Promise.all([
+          fetch("/api/exchange-rates"),
+          fetch("/api/auth/me"),
+        ]);
+        if (ratesRes.ok) {
+          const data: ExchangeRatesResponse = await ratesRes.json();
+          fetchedRates = data.rates || { PKR: 1 };
+          setRates(fetchedRates);
+          setBasePrice(data.basePrice ?? BASE_PRICE_PKR);
+        }
+        if (sessRes.ok) {
+          const sessData: SessionResponse = await sessRes.json();
+          const userCurrency = sessData.session?.currency || "PKR";
+          // Only adopt the user's currency if it is supported by the rates object.
+          if (userCurrency && fetchedRates[userCurrency] !== undefined) {
+            setCurrency(userCurrency);
+          }
+        }
+      } catch {
+        // ignore — keep defaults
+      } finally {
+        setRatesLoading(false);
+      }
+    })();
   }, [fetchStatus]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -183,6 +254,8 @@ export default function SubscriptionView() {
     }
     setSubmitting(true);
     try {
+      const rate = rates[currency] ?? 1;
+      const amountLocal = Math.round(basePrice * rate);
       const res = await fetch("/api/subscription/payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,6 +263,9 @@ export default function SubscriptionView() {
           method: selectedMethod,
           transactionRef: transactionRef.trim(),
           receiptPath,
+          currency,
+          amountLocal,
+          exchangeRate: rate,
         }),
       });
       const data = await res.json();
@@ -217,6 +293,12 @@ export default function SubscriptionView() {
   const isActive = subInfo?.subscriptionStatus === "ACTIVE";
   const isPending = subInfo?.subscriptionStatus === "PENDING";
   const currentMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
+
+  // Derived multicurrency display values.
+  const currentRate = rates[currency] ?? 1;
+  const localPriceLabel = formatLocalPrice(basePrice, currency, currentRate);
+  const basePriceLabel = `${basePrice.toLocaleString("en-PK")} PKR`;
+  const supportedCurrencies = Object.keys(rates);
 
   if (loading) {
     return (
@@ -303,9 +385,44 @@ export default function SubscriptionView() {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                5,000 PKR
+                {ratesLoading ? "…" : localPriceLabel}
               </span>
+              {currency !== "PKR" && (
+                <p className="mt-1 text-xs text-ivory/50">
+                  ({basePriceLabel})
+                </p>
+              )}
               <p className="mt-1 text-sm text-ivory/60">per month</p>
+            </div>
+            {/* Currency selector */}
+            <div className="mb-6 flex flex-col items-center gap-2">
+              <Label
+                htmlFor="currency-select"
+                className="text-xs uppercase tracking-wider text-ivory/60"
+              >
+                Display currency
+              </Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger
+                  id="currency-select"
+                  className="w-48 bg-white/5 border-[#D6B77A]/30 text-ivory"
+                >
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {supportedCurrencies.map((cur) => {
+                    const country = COUNTRIES.find((c) => c.currency === cur);
+                    const label = country
+                      ? `${cur} — ${country.name}`
+                      : cur;
+                    return (
+                      <SelectItem key={cur} value={cur}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
@@ -374,7 +491,12 @@ export default function SubscriptionView() {
             <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
               <CardHeader>
                 <CardTitle className="font-serif text-xl text-ivory">
-                  Step 2 — Send 5,000 PKR
+                  Step 2 — Send {ratesLoading ? "…" : localPriceLabel}
+                  {currency !== "PKR" && (
+                    <span className="ml-1 text-sm font-normal text-ivory/50">
+                      ({basePriceLabel})
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -424,8 +546,13 @@ export default function SubscriptionView() {
                           className="font-serif text-lg font-bold"
                           style={{ color: "#D6B77A" }}
                         >
-                          5,000 PKR
+                          {ratesLoading ? "…" : localPriceLabel}
                         </p>
+                        {currency !== "PKR" && (
+                          <p className="text-[10px] text-ivory/50">
+                            ({basePriceLabel})
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -572,9 +699,14 @@ export default function SubscriptionView() {
                 Payment Submitted for Verification
               </h2>
               <p className="mt-2 max-w-md mx-auto text-sm text-ivory/70">
-                Thank you. Your payment of 5,000 PKR has been submitted. An administrator
-                will review your screenshot and activate your subscription within 24 hours.
-                You will receive a notification once it's active.
+                Thank you. Your payment of{" "}
+                <span className="font-medium text-[#D6B77A]">{localPriceLabel}</span>
+                {currency !== "PKR" && (
+                  <span className="text-ivory/50"> ({basePriceLabel})</span>
+                )}{" "}
+                has been submitted. An administrator will review your screenshot and
+                activate your subscription within 24 hours. You will receive a
+                notification once it's active.
               </p>
               <Button
                 variant="outline"

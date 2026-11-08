@@ -1,0 +1,1214 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useMemo, useRef, useState } from "react";
+     4→     4→import type { ChangeEvent, ReactNode } from "react";
+     5→     5→import { motion, AnimatePresence } from "framer-motion";
+     6→     6→import {
+     7→     7→  ArrowLeft,
+     8→     8→  ArrowRight,
+     9→     9→  Calendar,
+    10→    10→  Check,
+    11→    11→  CheckCircle2,
+    12→    12→  CreditCard,
+    13→    13→  Globe2,
+    14→    14→  Heart,
+    15→    15→  Home,
+    16→    16→  IdCard,
+    17→    17→  Info,
+    18→    18→  Loader2,
+    19→    19→  Lock,
+    20→    20→  Mail,
+    21→    21→  MapPin,
+    22→    22→  Phone,
+    23→    23→  ShieldCheck,
+    24→    24→  Sparkles,
+    25→    25→  Upload,
+    26→    26→  User,
+    27→    27→} from "lucide-react";
+    28→    28→import { toast } from "sonner";
+    29→    29→import { Button } from "@/components/ui/button";
+    30→    30→import {
+    31→    31→  Card,
+    32→    32→  CardContent,
+    33→    33→  CardDescription,
+    34→    34→  CardFooter,
+    35→    35→  CardHeader,
+    36→    36→  CardTitle,
+    37→    37→} from "@/components/ui/card";
+    38→    38→import { Checkbox } from "@/components/ui/checkbox";
+    39→    39→import { Input } from "@/components/ui/input";
+    40→    40→import { Label } from "@/components/ui/label";
+    41→    41→import { Progress } from "@/components/ui/progress";
+    42→    42→import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+    43→    43→import {
+    44→    44→  Select,
+    45→    45→  SelectContent,
+    46→    46→  SelectItem,
+    47→    47→  SelectTrigger,
+    48→    48→  SelectValue,
+    49→    49→} from "@/components/ui/select";
+    50→    50→import { Alert, AlertDescription } from "@/components/ui/alert";
+    51→    51→import { useNav, useSession } from "@/lib/store";
+    52→    52→
+    53→    53→type AccountType = "INDIVIDUAL" | "PARENT" | "";
+    54→    54→type Gender = "Male" | "Female" | "Prefer not to say" | "";
+    55→    55→type DocType = "id_card_front" | "id_card_back" | "electricity_bill";
+    56→    56→
+    57→    57→interface RegisterResult {
+    58→    58→  ok: boolean;
+    59→    59→  userId?: string;
+    60→    60→  dev?: { otp: string; emailToken: string };
+    61→    61→  message?: string;
+    62→    62→  error?: string;
+    63→    63→  issues?: { path: (string | number)[]; message: string }[];
+    64→    64→}
+    65→    65→
+    66→    66→interface UploadResponse {
+    67→    67→  ok?: boolean;
+    68→    68→  path?: string;
+    69→    69→  type?: string;
+    70→    70→  error?: string;
+    71→    71→}
+    72→    72→
+    73→    73→function checkStrength(p: string) {
+    74→    74→  return {
+    75→    75→    length: p.length >= 10,
+    76→    76→    upper: /[A-Z]/.test(p),
+    77→    77→    lower: /[a-z]/.test(p),
+    78→    78→    digit: /[0-9]/.test(p),
+    79→    79→    special: /[^A-Za-z0-9]/.test(p),
+    80→    80→  };
+    81→    81→}
+    82→    82→
+    83→    83→const TOTAL_STEPS = 4;
+    84→    84→
+    85→    85→const STEP_LABELS = [
+    86→    86→  "Account Type",
+    87→    87→  "Personal Details",
+    88→    88→  "Security & Documents",
+    89→    89→  "Eligibility & Consent",
+    90→    90→];
+    91→    91→
+    92→    92→const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    93→    93→
+    94→    94→interface DocUploadZoneProps {
+    95→    95→  label: string;
+    96→    96→  description: string;
+    97→    97→  icon: ReactNode;
+    98→    98→  uploading: boolean;
+    99→    99→  preview: string;
+   100→   100→  fileName: string;
+   101→   101→  done: boolean;
+   102→   102→  onFile: (file: File) => void;
+   103→   103→}
+   104→   104→
+   105→   105→function DocUploadZone({
+   106→   106→  label,
+   107→   107→  description,
+   108→   108→  icon,
+   109→   109→  uploading,
+   110→   110→  preview,
+   111→   111→  fileName,
+   112→   112→  done,
+   113→   113→  onFile,
+   114→   114→}: DocUploadZoneProps) {
+   115→   115→  const inputRef = useRef<HTMLInputElement>(null);
+   116→   116→  const [dragging, setDragging] = useState(false);
+   117→   117→
+   118→   118→  function handleDrop(e: React.DragEvent<HTMLButtonElement>) {
+   119→   119→    e.preventDefault();
+   120→   120→    setDragging(false);
+   121→   121→    const f = e.dataTransfer.files?.[0];
+   122→   122→    if (f) onFile(f);
+   123→   123→  }
+   124→   124→
+   125→   125→  return (
+   126→   126→    <div>
+   127→   127→      <input
+   128→   128→        ref={inputRef}
+   129→   129→        type="file"
+   130→   130→        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+   131→   131→        className="hidden"
+   132→   132→        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+   133→   133→          const f = e.target.files?.[0];
+   134→   134→          if (f) onFile(f);
+   135→   135→          e.target.value = "";
+   136→   136→        }}
+   137→   137→      />
+   138→   138→      <Label className="text-sm text-ivory/80 mb-1.5 block">{label}</Label>
+   139→   139→      <button
+   140→   140→        type="button"
+   141→   141→        onClick={() => inputRef.current?.click()}
+   142→   142→        onDragOver={(e) => {
+   143→   143→          e.preventDefault();
+   144→   144→          setDragging(true);
+   145→   145→        }}
+   146→   146→        onDragLeave={() => setDragging(false)}
+   147→   147→        onDrop={handleDrop}
+   148→   148→        className={`flex w-full items-stretch gap-3 rounded-lg border-2 border-dashed px-4 py-4 text-left transition-colors ${
+   149→   149→          dragging
+   150→   150→            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+   151→   151→            : done
+   152→   152→              ? "border-[#D6B77A]/40 bg-white/[0.04]"
+   153→   153→              : "border-[#D6B77A]/40 bg-white/[0.03] hover:border-[#D6B77A] hover:bg-white/[0.06]"
+   154→   154→        }`}
+   155→   155→      >
+   156→   156→        {uploading ? (
+   157→   157→          <div className="flex items-center gap-3 py-1">
+   158→   158→            <Loader2 className="h-5 w-5 animate-spin text-[#D6B77A]" />
+   159→   159→            <div>
+   160→   160→              <p className="text-sm text-ivory">Uploading…</p>
+   161→   161→              <p className="text-xs text-ivory/50">Please wait a moment.</p>
+   162→   162→            </div>
+   163→   163→          </div>
+   164→   164→        ) : done ? (
+   165→   165→          <div className="flex w-full items-start gap-3">
+   166→   166→            {preview && (
+   167→   167→              <img
+   168→   168→                src={preview}
+   169→   169→                alt=""
+   170→   170→                className="h-12 w-12 rounded border border-[#D6B77A]/30 object-cover"
+   171→   171→              />
+   172→   172→            )}
+   173→   173→            <div className="min-w-0 flex-1">
+   174→   174→              <div className="flex items-center gap-2">
+   175→   175→                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
+   176→   176→                <span className="truncate text-sm text-ivory">{fileName}</span>
+   177→   177→              </div>
+   178→   178→              <span className="text-xs text-ivory/50">
+   179→   179→                Uploaded — click to replace
+   180→   180→              </span>
+   181→   181→            </div>
+   182→   182→          </div>
+   183→   183→        ) : (
+   184→   184→          <div className="flex w-full items-center gap-3">
+   185→   185→            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#D6B77A]/10 text-[#D6B77A]">
+   186→   186→              {icon}
+   187→   187→            </div>
+   188→   188→            <div className="min-w-0">
+   189→   189→              <p className="text-sm font-medium text-ivory">{label}</p>
+   190→   190→              <p className="text-xs text-ivory/50">{description}</p>
+   191→   191→            </div>
+   192→   192→          </div>
+   193→   193→        )}
+   194→   194→      </button>
+   195→   195→    </div>
+   196→   196→  );
+   197→   197→}
+   198→   198→
+   199→   199→export default function RegisterView() {
+   200→   200→  const setView = useNav((s) => s.setView);
+   201→   201→  const refresh = useSession((s) => s.refresh);
+   202→   202→
+   203→   203→  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+   204→   204→  const [loading, setLoading] = useState(false);
+   205→   205→  const [success, setSuccess] = useState<{
+   206→   206→    message: string;
+   207→   207→    otp: string;
+   208→   208→    emailToken: string;
+   209→   209→  } | null>(null);
+   210→   210→
+   211→   211→  // Step 1 — Account type
+   212→   212→  const [accountType, setAccountType] = useState<AccountType>("");
+   213→   213→  const [parentRelationship, setParentRelationship] = useState("");
+   214→   214→
+   215→   215→  // Step 2 — Personal details
+   216→   216→  const [fullName, setFullName] = useState("");
+   217→   217→  const [dateOfBirth, setDateOfBirth] = useState("");
+   218→   218→  const [gender, setGender] = useState<Gender>("");
+   219→   219→  const [email, setEmail] = useState("");
+   220→   220→  const [mobile, setMobile] = useState("");
+   221→   221→  const [city, setCity] = useState("");
+   222→   222→  const [connectionToGB, setConnectionToGB] = useState("");
+   223→   223→
+   224→   224→  // Step 3 — Security
+   225→   225→  const [password, setPassword] = useState("");
+   226→   226→  const [confirm, setConfirm] = useState("");
+   227→   227→
+   228→   228→  // Step 3 — Document uploads
+   229→   229→  const [idCardFrontPath, setIdCardFrontPath] = useState("");
+   230→   230→  const [idCardBackPath, setIdCardBackPath] = useState("");
+   231→   231→  const [electricityBillPath, setElectricityBillPath] = useState("");
+   232→   232→  const [idCardFrontName, setIdCardFrontName] = useState("");
+   233→   233→  const [idCardBackName, setIdCardBackName] = useState("");
+   234→   234→  const [electricityBillName, setElectricityBillName] = useState("");
+   235→   235→  const [idCardFrontPreview, setIdCardFrontPreview] = useState("");
+   236→   236→  const [idCardBackPreview, setIdCardBackPreview] = useState("");
+   237→   237→  const [electricityBillPreview, setElectricityBillPreview] = useState("");
+   238→   238→  const [uploadingFront, setUploadingFront] = useState(false);
+   239→   239→  const [uploadingBack, setUploadingBack] = useState(false);
+   240→   240→  const [uploadingBill, setUploadingBill] = useState(false);
+   241→   241→
+   242→   242→  // Step 4 — Eligibility, consent, subscription
+   243→   243→  const [ageConfirmed, setAgeConfirmed] = useState(false);
+   244→   244→  const [ismailiEligibilityConfirmed, setIsmailiEligibilityConfirmed] =
+   245→   245→    useState(false);
+   246→   246→  const [matrimonialOnlyConfirmed, setMatrimonialOnlyConfirmed] =
+   247→   247→    useState(false);
+   248→   248→  const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
+   249→   249→  const [subscriptionAccepted, setSubscriptionAccepted] = useState(false);
+   250→   250→
+   251→   251→  const strength = useMemo(() => checkStrength(password), [password]);
+   252→   252→  const strengthScore = Object.values(strength).filter(Boolean).length;
+   253→   253→  const strengthPct = (strengthScore / 5) * 100;
+   254→   254→  const strengthLabel =
+   255→   255→    strengthScore <= 1
+   256→   256→      ? "Very weak"
+   257→   257→      : strengthScore === 2
+   258→   258→        ? "Weak"
+   259→   259→        : strengthScore === 3
+   260→   260→          ? "Fair"
+   261→   261→          : strengthScore === 4
+   262→   262→            ? "Strong"
+   263→   263→            : "Excellent";
+   264→   264→
+   265→   265→  const step1Valid =
+   266→   266→    accountType !== "" &&
+   267→   267→    (accountType === "INDIVIDUAL" ||
+   268→   268→      (accountType === "PARENT" && parentRelationship !== ""));
+   269→   269→
+   270→   270→  const step2Valid =
+   271→   271→    fullName.trim().length >= 2 &&
+   272→   272→    !!dateOfBirth &&
+   273→   273→    !!gender &&
+   274→   274→    /.+@.+\..+/.test(email) &&
+   275→   275→    mobile.trim().length >= 7 &&
+   276→   276→    city.trim().length >= 2 &&
+   277→   277→    connectionToGB.trim().length >= 2;
+   278→   278→
+   279→   279→  const step3Valid =
+   280→   280→    password.length > 0 &&
+   281→   281→    strength.length &&
+   282→   282→    strength.upper &&
+   283→   283→    strength.lower &&
+   284→   284→    strength.digit &&
+   285→   285→    strength.special &&
+   286→   286→    password === confirm &&
+   287→   287→    idCardFrontPath !== "" &&
+   288→   288→    idCardBackPath !== "" &&
+   289→   289→    electricityBillPath !== "";
+   290→   290→
+   291→   291→  const step4Valid =
+   292→   292→    ageConfirmed &&
+   293→   293→    ismailiEligibilityConfirmed &&
+   294→   294→    matrimonialOnlyConfirmed &&
+   295→   295→    privacyPolicyAccepted &&
+   296→   296→    subscriptionAccepted;
+   297→   297→
+   298→   298→  const progressPct = (step / TOTAL_STEPS) * 100;
+   299→   299→
+   300→   300→  // Reusable upload helper — posts multipart/form-data to /api/upload
+   301→   301→  // and returns the stored file path.
+   302→   302→  async function uploadFile(
+   303→   303→    file: File,
+   304→   304→    type: DocType,
+   305→   305→  ): Promise<string> {
+   306→   306→    const formData = new FormData();
+   307→   307→    formData.append("file", file);
+   308→   308→    formData.append("type", type);
+   309→   309→    const res = await fetch("/api/upload", {
+   310→   310→      method: "POST",
+   311→   311→      body: formData,
+   312→   312→    });
+   313→   313→    const data = (await res.json()) as UploadResponse;
+   314→   314→    if (!res.ok || !data.ok || !data.path) {
+   315→   315→      throw new Error(data.error ?? "Upload failed.");
+   316→   316→    }
+   317→   317→    return data.path;
+   318→   318→  }
+   319→   319→
+   320→   320→  function pickState(type: DocType) {
+   321→   321→    switch (type) {
+   322→   322→      case "id_card_front":
+   323→   323→        return {
+   324→   324→          setUploading: setUploadingFront,
+   325→   325→          setPath: setIdCardFrontPath,
+   326→   326→          setName: setIdCardFrontName,
+   327→   327→          setPreview: setIdCardFrontPreview,
+   328→   328→        };
+   329→   329→      case "id_card_back":
+   330→   330→        return {
+   331→   331→          setUploading: setUploadingBack,
+   332→   332→          setPath: setIdCardBackPath,
+   333→   333→          setName: setIdCardBackName,
+   334→   334→          setPreview: setIdCardBackPreview,
+   335→   335→        };
+   336→   336→      case "electricity_bill":
+   337→   337→        return {
+   338→   338→          setUploading: setUploadingBill,
+   339→   339→          setPath: setElectricityBillPath,
+   340→   340→          setName: setElectricityBillName,
+   341→   341→          setPreview: setElectricityBillPreview,
+   342→   342→        };
+   343→   343→    }
+   344→   344→  }
+   345→   345→
+   346→   346→  async function handleDocSelect(file: File, type: DocType) {
+   347→   347→    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+   348→   348→      toast.error("Please upload a JPEG, PNG, or WebP image.");
+   349→   349→      return;
+   350→   350→    }
+   351→   351→    if (file.size > 5 * 1024 * 1024) {
+   352→   352→      toast.error("File is too large. Maximum size is 5 MB.");
+   353→   353→      return;
+   354→   354→    }
+   355→   355→    const { setUploading, setPath, setName, setPreview } = pickState(type);
+   356→   356→    setPreview(URL.createObjectURL(file));
+   357→   357→    setUploading(true);
+   358→   358→    try {
+   359→   359→      const path = await uploadFile(file, type);
+   360→   360→      setPath(path);
+   361→   361→      setName(file.name);
+   362→   362→      toast.success("Document uploaded.");
+   363→   363→    } catch (err) {
+   364→   364→      toast.error(err instanceof Error ? err.message : "Upload failed.");
+   365→   365→      setPath("");
+   366→   366→      setName("");
+   367→   367→      setPreview("");
+   368→   368→    } finally {
+   369→   369→      setUploading(false);
+   370→   370→    }
+   371→   371→  }
+   372→   372→
+   373→   373→  function next() {
+   374→   374→    if (step === 1 && !step1Valid) {
+   375→   375→      toast.error(
+   376→   376→        accountType === "PARENT" && !parentRelationship
+   377→   377→          ? "Please select your relationship to the person you're registering."
+   378→   378→          : "Please choose an account type to continue.",
+   379→   379→      );
+   380→   380→      return;
+   381→   381→    }
+   382→   382→    if (step === 2 && !step2Valid) {
+   383→   383→      toast.error("Please complete all required personal fields.");
+   384→   384→      return;
+   385→   385→    }
+   386→   386→    if (step === 3 && !step3Valid) {
+   387→   387→      if (password !== confirm) {
+   388→   388→        toast.error("Passwords do not match.");
+   389→   389→        return;
+   390→   390→      }
+   391→   391→      if (!idCardFrontPath || !idCardBackPath || !electricityBillPath) {
+   392→   392→        toast.error("All three documents are compulsory for verification.");
+   393→   393→        return;
+   394→   394→      }
+   395→   395→      toast.error("Please meet all password strength requirements.");
+   396→   396→      return;
+   397→   397→    }
+   398→   398→    setStep((s) => (Math.min(s + 1, TOTAL_STEPS) as 1 | 2 | 3 | 4));
+   399→   399→  }
+   400→   400→
+   401→   401→  function back() {
+   402→   402→    setStep((s) => (Math.max(s - 1, 1) as 1 | 2 | 3 | 4));
+   403→   403→  }
+   404→   404→
+   405→   405→  async function handleSubmit() {
+   406→   406→    if (!step4Valid) {
+   407→   407→      toast.error("Please confirm all declarations and the subscription.");
+   408→   408→      return;
+   409→   409→    }
+   410→   410→    setLoading(true);
+   411→   411→    try {
+   412→   412→      const res = await fetch("/api/auth/register", {
+   413→   413→        method: "POST",
+   414→   414→        headers: { "Content-Type": "application/json" },
+   415→   415→        body: JSON.stringify({
+   416→   416→          accountType: accountType === "PARENT" ? "PARENT" : "INDIVIDUAL",
+   417→   417→          parentRelationship:
+   418→   418→            accountType === "PARENT" ? parentRelationship : undefined,
+   419→   419→          fullName,
+   420→   420→          dateOfBirth,
+   421→   421→          gender,
+   422→   422→          email,
+   423→   423→          mobile,
+   424→   424→          password,
+   425→   425→          city,
+   426→   426→          connectionToGB,
+   427→   427→          idCardFrontPath,
+   428→   428→          idCardBackPath,
+   429→   429→          electricityBillPath,
+   430→   430→          ismailiEligibilityConfirmed,
+   431→   431→          matrimonialOnlyConfirmed,
+   432→   432→          privacyPolicyAccepted,
+   433→   433→          ageConfirmed,
+   434→   434→          subscriptionAccepted,
+   435→   435→        }),
+   436→   436→      });
+   437→   437→      const data = (await res.json()) as RegisterResult;
+   438→   438→      if (!res.ok || !data.ok) {
+   439→   439→        if (data.issues && data.issues.length > 0) {
+   440→   440→          data.issues.forEach((i) =>
+   441→   441→            toast.error(`${i.path.join(".")}: ${i.message}`),
+   442→   442→          );
+   443→   443→        } else {
+   444→   444→          toast.error(data.error ?? "Registration failed.");
+   445→   445→        }
+   446→   446→        setLoading(false);
+   447→   447→        return;
+   448→   448→      }
+   449→   449→      toast.success("Account created. Verify your contact details to continue.");
+   450→   450→      await refresh();
+   451→   451→      if (data.dev?.otp && data.dev?.emailToken) {
+   452→   452→        setSuccess({
+   453→   453→          message:
+   454→   454→            data.message ?? "Verify your email and phone to continue.",
+   455→   455→          otp: data.dev.otp,
+   456→   456→          emailToken: data.dev.emailToken,
+   457→   457→        });
+   458→   458→      } else {
+   459→   459→        setView("verify");
+   460→   460→      }
+   461→   461→    } catch {
+   462→   462→      toast.error("Network error. Please try again.");
+   463→   463→      setLoading(false);
+   464→   464→    }
+   465→   465→  }
+   466→   466→
+   467→   467→  if (success) {
+   468→   468→    return (
+   469→   469→      <div className="bg-navy-gradient flex min-h-screen items-center justify-center px-4 py-12">
+   470→   470→        <motion.div
+   471→   471→          initial={{ opacity: 0, y: 12 }}
+   472→   472→          animate={{ opacity: 1, y: 0 }}
+   473→   473→          transition={{ duration: 0.4, ease: "easeOut" }}
+   474→   474→          className="w-full max-w-lg"
+   475→   475→        >
+   476→   476→          <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg text-ivory">
+   477→   477→            <CardHeader className="text-center">
+   478→   478→              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/5 ring-gold">
+   479→   479→                <CheckCircle2 className="h-7 w-7 text-[#D6B77A]" />
+   480→   480→              </div>
+   481→   481→              <CardTitle className="text-gold-gradient font-serif text-2xl">
+   482→   482→                Account created
+   483→   483→              </CardTitle>
+   484→   484→              <CardDescription className="text-ivory/70">
+   485→   485→                {success.message}
+   486→   486→              </CardDescription>
+   487→   487→            </CardHeader>
+   488→   488→            <CardContent className="space-y-4">
+   489→   489→              <div className="rounded-md border border-[#D6B77A]/30 bg-[#D6B77A]/10 p-4">
+   490→   490→                <p className="mb-3 text-[10px] font-semibold tracking-[0.25em] uppercase text-[#D6B77A]">
+   491→   491→                  DEMO ONLY — in production these are sent by SMS / email
+   492→   492→                </p>
+   493→   493→                <div className="space-y-3">
+   494→   494→                  <div>
+   495→   495→                    <p className="mb-1 text-xs text-ivory/60">Phone OTP</p>
+   496→   496→                    <p className="rounded border border-[#D6B77A]/20 bg-white/5 px-3 py-2 font-mono text-lg tracking-wider text-ivory">
+   497→   497→                      {success.otp}
+   498→   498→                    </p>
+   499→   499→                  </div>
+   500→   500→                  <div>
+   501→   501→                    <p className="mb-1 text-xs text-ivory/60">
+   502→   502→                      Email verification token
+   503→   503→                    </p>
+   504→   504→                    <p className="rounded border border-[#D6B77A]/20 bg-white/5 px-3 py-2 break-all font-mono text-xs text-ivory">
+   505→   505→                      {success.emailToken}
+   506→   506→                    </p>
+   507→   507→                  </div>
+   508→   508→                </div>
+   509→   509→              </div>
+   510→   510→              <p className="text-xs text-ivory/60">
+   511→   511→                In production, the OTP is sent only by SMS and the verification
+   512→   512→                link is sent only by email. They are shown here purely to help
+   513→   513→                you complete the flow in the sandbox.
+   514→   514→              </p>
+   515→   515→            </CardContent>
+   516→   516→            <CardFooter className="flex flex-col gap-3">
+   517→   517→              <Button
+   518→   518→                onClick={() => setView("verify")}
+   519→   519→                className="w-full bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5]"
+   520→   520→              >
+   521→   521→                Continue to verification <ArrowRight className="h-4 w-4" />
+   522→   522→              </Button>
+   523→   523→              <div
+   524→   524→                className="w-full rounded-lg border border-[#D6B77A]/30 bg-[#D6B77A]/10 p-3 text-center"
+   525→   525→              >
+   526→   526→                <p className="text-xs text-ivory/80">
+   527→   527→                  After verification, you'll need to activate your{" "}
+   528→   528→                  <span className="font-medium text-[#D6B77A]">
+   529→   529→                    monthly subscription (5,000 PKR)
+   530→   530→                  </span>{" "}
+   531→   531→                  to browse profiles and contact members.
+   532→   532→                </p>
+   533→   533→              </div>
+   534→   534→              <button
+   535→   535→                onClick={() => setView("subscription")}
+   536→   536→                className="text-sm text-ivory/70 underline-offset-4 hover:text-ivory hover:underline"
+   537→   537→              >
+   538→   538→                Go to subscription payment
+   539→   539→              </button>
+   540→   540→            </CardFooter>
+   541→   541→          </Card>
+   542→   542→        </motion.div>
+   543→   543→      </div>
+   544→   544→    );
+   545→   545→  }
+   546→   546→
+   547→   547→  return (
+   548→   548→    <div className="bg-navy-gradient flex min-h-screen items-center justify-center px-4 py-12">
+   549→   549→      <motion.div
+   550→   550→        initial={{ opacity: 0, y: 12 }}
+   551→   551→        animate={{ opacity: 1, y: 0 }}
+   552→   552→        transition={{ duration: 0.4, ease: "easeOut" }}
+   553→   553→        className="w-full max-w-2xl"
+   554→   554→      >
+   555→   555→        <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg text-ivory">
+   556→   556→          <CardHeader className="space-y-4">
+   557→   557→            <div className="flex items-center gap-2 text-[#D6B77A]">
+   558→   558→              <Sparkles className="h-4 w-4" />
+   559→   559→              <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+   560→   560→                GarMinas Registration
+   561→   561→              </span>
+   562→   562→            </div>
+   563→   563→            <CardTitle className="text-gold-gradient font-serif text-2xl sm:text-3xl">
+   564→   564→              Create your GarMinas account
+   565→   565→            </CardTitle>
+   566→   566→            <CardDescription className="text-ivory/70">
+   567→   567→              A private, verified matrimonial platform for the Ismaili
+   568→   568→              community connected to Gilgit-Baltistan.
+   569→   569→            </CardDescription>
+   570→   570→
+   571→   571→            {/* Step indicator + progress */}
+   572→   572→            <div className="space-y-2 pt-2">
+   573→   573→              <div className="flex items-center justify-between text-xs">
+   574→   574→                <span className="text-ivory/80">
+   575→   575→                  Step{" "}
+   576→   576→                  <span className="font-semibold text-ivory">{step}</span> of{" "}
+   577→   577→                  {TOTAL_STEPS}
+   578→   578→                </span>
+   579→   579→                <span className="text-ivory/60">
+   580→   580→                  {STEP_LABELS[step - 1]}
+   581→   581→                </span>
+   582→   582→              </div>
+   583→   583→              <Progress
+   584→   584→                value={progressPct}
+   585→   585→                className="h-2 bg-white/10 [&>div]:bg-[#D6B77A]"
+   586→   586→              />
+   587→   587→              <div className="hidden grid-cols-4 gap-1 pt-1 sm:grid">
+   588→   588→                {STEP_LABELS.map((label, i) => {
+   589→   589→                  const n = i + 1;
+   590→   590→                  const active = n === step;
+   591→   591→                  const complete = n < step;
+   592→   592→                  return (
+   593→   593→                    <div
+   594→   594→                      key={label}
+   595→   595→                      className={`flex items-center gap-1.5 text-[11px] ${
+   596→   596→                        active
+   597→   597→                          ? "text-[#D6B77A]"
+   598→   598→                          : complete
+   599→   599→                            ? "text-ivory/70"
+   600→   600→                            : "text-ivory/40"
+   601→   601→                      }`}
+   602→   602→                    >
+   603→   603→                      <span
+   604→   604→                        className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] ${
+   605→   605→                          active
+   606→   606→                            ? "border-[#D6B77A] bg-[#D6B77A] text-[#111827]"
+   607→   607→                            : complete
+   608→   608→                              ? "border-[#D6B77A]/60 bg-[#D6B77A]/20 text-[#D6B77A]"
+   609→   609→                              : "border-white/20"
+   610→   610→                        }`}
+   611→   611→                      >
+   612→   612→                        {complete ? <Check className="h-2.5 w-2.5" /> : n}
+   613→   613→                      </span>
+   614→   614→                      <span className="hidden truncate lg:inline">{label}</span>
+   615→   615→                    </div>
+   616→   616→                  );
+   617→   617→                })}
+   618→   618→              </div>
+   619→   619→            </div>
+   620→   620→          </CardHeader>
+   621→   621→
+   622→   622→          <CardContent className="min-h-[320px]">
+   623→   623→            <AnimatePresence mode="wait">
+   624→   624→              {/* ─────────────────────── STEP 1 ─────────────────────── */}
+   625→   625→              {step === 1 && (
+   626→   626→                <motion.div
+   627→   627→                  key="step-1"
+   628→   628→                  initial={{ opacity: 0, x: 20 }}
+   629→   629→                  animate={{ opacity: 1, x: 0 }}
+   630→   630→                  exit={{ opacity: 0, x: -20 }}
+   631→   631→                  transition={{ duration: 0.25 }}
+   632→   632→                  className="space-y-5"
+   633→   633→                >
+   634→   634→                  <Alert className="border-[#D6B77A]/30 bg-[#D6B77A]/[0.07] text-ivory">
+   635→   635→                    <Info className="text-[#D6B77A]" />
+   636→   636→                    <AlertDescription className="text-ivory/80">
+   637→   637→                      GarMinas is exclusively intended for adult Ismailis
+   638→   638→                      connected to Gilgit-Baltistan and is dedicated solely to
+   639→   639→                      matrimonial purposes.
+   640→   640→                    </AlertDescription>
+   641→   641→                  </Alert>
+   642→   642→
+   643→   643→                  <div className="space-y-3">
+   644→   644→                    <Label className="text-sm text-ivory/80">
+   645→   645→                      Who are you registering?
+   646→   646→                    </Label>
+   647→   647→                    <RadioGroup
+   648→   648→                      value={accountType}
+   649→   649→                      onValueChange={(v) => setAccountType(v as AccountType)}
+   650→   650→                      className="gap-3"
+   651→   651→                    >
+   652→   652→                      <label
+   653→   653→                        htmlFor="acct-individual"
+   654→   654→                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+   655→   655→                          accountType === "INDIVIDUAL"
+   656→   656→                            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+   657→   657→                            : "border-white/15 bg-white/[0.03] hover:border-[#D6B77A]/50"
+   658→   658→                        }`}
+   659→   659→                      >
+   660→   660→                        <RadioGroupItem
+   661→   661→                          id="acct-individual"
+   662→   662→                          value="INDIVIDUAL"
+   663→   663→                          className="mt-0.5 border-white/40 text-[#D6B77A] data-[state=checked]:border-[#D6B77A] data-[state=checked]:text-[#D6B77A]"
+   664→   664→                        />
+   665→   665→                        <div>
+   666→   666→                          <div className="flex items-center gap-2">
+   667→   667→                            <User className="h-4 w-4 text-[#D6B77A]" />
+   668→   668→                            <span className="text-sm font-medium text-ivory">
+   669→   669→                              Individual
+   670→   670→                            </span>
+   671→   671→                          </div>
+   672→   672→                          <p className="text-xs text-ivory/60">
+   673→   673→                            I am searching for myself
+   674→   674→                          </p>
+   675→   675→                        </div>
+   676→   676→                      </label>
+   677→   677→
+   678→   678→                      <label
+   679→   679→                        htmlFor="acct-parent"
+   680→   680→                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+   681→   681→                          accountType === "PARENT"
+   682→   682→                            ? "border-[#D6B77A] bg-[#D6B77A]/10"
+   683→   683→                            : "border-white/15 bg-white/[0.03] hover:border-[#D6B77A]/50"
+   684→   684→                        }`}
+   685→   685→                      >
+   686→   686→                        <RadioGroupItem
+   687→   687→                          id="acct-parent"
+   688→   688→                          value="PARENT"
+   689→   689→                          className="mt-0.5 border-white/40 text-[#D6B77A] data-[state=checked]:border-[#D6B77A] data-[state=checked]:text-[#D6B77A]"
+   690→   690→                        />
+   691→   691→                        <div>
+   692→   692→                          <div className="flex items-center gap-2">
+   693→   693→                            <Heart className="h-4 w-4 text-[#D6B77A]" />
+   694→   694→                            <span className="text-sm font-medium text-ivory">
+   695→   695→                              Parent / Guardian
+   696→   696→                            </span>
+   697→   697→                          </div>
+   698→   698→                          <p className="text-xs text-ivory/60">
+   699→   699→                            I am searching for my child
+   700→   700→                          </p>
+   701→   701→                        </div>
+   702→   702→                      </label>
+   703→   703→                    </RadioGroup>
+   704→   704→                  </div>
+   705→   705→
+   706→   706→                  <AnimatePresence>
+   707→   707→                    {accountType === "PARENT" && (
+   708→   708→                      <motion.div
+   709→   709→                        key="parent-relationship"
+   710→   710→                        initial={{ opacity: 0, height: 0 }}
+   711→   711→                        animate={{ opacity: 1, height: "auto" }}
+   712→   712→                        exit={{ opacity: 0, height: 0 }}
+   713→   713→                        transition={{ duration: 0.25 }}
+   714→   714→                        className="overflow-hidden"
+   715→   715→                      >
+   716→   716→                        <div className="space-y-2">
+   717→   717→                          <Label
+   718→   718→                            htmlFor="parent-rel"
+   719→   719→                            className="text-sm text-ivory/80"
+   720→   720→                          >
+   721→   721→                            Your relationship to the person you are registering
+   722→   722→                          </Label>
+   723→   723→                          <Select
+   724→   724→                            value={parentRelationship}
+   725→   725→                            onValueChange={setParentRelationship}
+   726→   726→                          >
+   727→   727→                            <SelectTrigger
+   728→   728→                              id="parent-rel"
+   729→   729→                              className="border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+   730→   730→                            >
+   731→   731→                              <SelectValue placeholder="Select relationship" />
+   732→   732→                            </SelectTrigger>
+   733→   733→                            <SelectContent>
+   734→   734→                              <SelectItem value="Father">Father</SelectItem>
+   735→   735→                              <SelectItem value="Mother">Mother</SelectItem>
+   736→   736→                              <SelectItem value="Guardian">Guardian</SelectItem>
+   737→   737→                              <SelectItem value="Elder Sibling">
+   738→   738→                                Elder Sibling
+   739→   739→                              </SelectItem>
+   740→   740→                              <SelectItem value="Other">Other</SelectItem>
+   741→   741→                            </SelectContent>
+   742→   742→                          </Select>
+   743→   743→                        </div>
+   744→   744→                      </motion.div>
+   745→   745→                    )}
+   746→   746→                  </AnimatePresence>
+   747→   747→                </motion.div>
+   748→   748→              )}
+   749→   749→
+   750→   750→              {/* ─────────────────────── STEP 2 ─────────────────────── */}
+   751→   751→              {step === 2 && (
+   752→   752→                <motion.div
+   753→   753→                  key="step-2"
+   754→   754→                  initial={{ opacity: 0, x: 20 }}
+   755→   755→                  animate={{ opacity: 1, x: 0 }}
+   756→   756→                  exit={{ opacity: 0, x: -20 }}
+   757→   757→                  transition={{ duration: 0.25 }}
+   758→   758→                  className="grid gap-4 sm:grid-cols-2"
+   759→   759→                >
+   760→   760→                  <div className="space-y-2 sm:col-span-2">
+   761→   761→                    <Label htmlFor="fullName" className="text-sm text-ivory/80">
+   762→   762→                      Full name
+   763→   763→                    </Label>
+   764→   764→                    <div className="relative">
+   765→   765→                      <User className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   766→   766→                      <Input
+   767→   767→                        id="fullName"
+   768→   768→                        value={fullName}
+   769→   769→                        onChange={(e) => setFullName(e.target.value)}
+   770→   770→                        placeholder="e.g. Ali Karim"
+   771→   771→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   772→   772→                      />
+   773→   773→                    </div>
+   774→   774→                  </div>
+   775→   775→
+   776→   776→                  <div className="space-y-2">
+   777→   777→                    <Label
+   778→   778→                      htmlFor="dateOfBirth"
+   779→   779→                      className="text-sm text-ivory/80"
+   780→   780→                    >
+   781→   781→                      Date of birth
+   782→   782→                    </Label>
+   783→   783→                    <div className="relative">
+   784→   784→                      <Calendar className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   785→   785→                      <Input
+   786→   786→                        id="dateOfBirth"
+   787→   787→                        type="date"
+   788→   788→                        value={dateOfBirth}
+   789→   789→                        onChange={(e) => setDateOfBirth(e.target.value)}
+   790→   790→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   791→   791→                      />
+   792→   792→                    </div>
+   793→   793→                  </div>
+   794→   794→
+   795→   795→                  <div className="space-y-2">
+   796→   796→                    <Label htmlFor="gender" className="text-sm text-ivory/80">
+   797→   797→                      Gender
+   798→   798→                    </Label>
+   799→   799→                    <Select
+   800→   800→                      value={gender}
+   801→   801→                      onValueChange={(v) => setGender(v as Gender)}
+   802→   802→                    >
+   803→   803→                      <SelectTrigger
+   804→   804→                        id="gender"
+   805→   805→                        className="border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+   806→   806→                      >
+   807→   807→                        <SelectValue placeholder="Select gender" />
+   808→   808→                      </SelectTrigger>
+   809→   809→                      <SelectContent>
+   810→   810→                        <SelectItem value="Male">Male</SelectItem>
+   811→   811→                        <SelectItem value="Female">Female</SelectItem>
+   812→   812→                        <SelectItem value="Prefer not to say">
+   813→   813→                          Prefer not to say
+   814→   814→                        </SelectItem>
+   815→   815→                      </SelectContent>
+   816→   816→                    </Select>
+   817→   817→                  </div>
+   818→   818→
+   819→   819→                  <div className="space-y-2">
+   820→   820→                    <Label htmlFor="email" className="text-sm text-ivory/80">
+   821→   821→                      Email address
+   822→   822→                    </Label>
+   823→   823→                    <div className="relative">
+   824→   824→                      <Mail className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   825→   825→                      <Input
+   826→   826→                        id="email"
+   827→   827→                        type="email"
+   828→   828→                        value={email}
+   829→   829→                        onChange={(e) => setEmail(e.target.value)}
+   830→   830→                        placeholder="you@example.com"
+   831→   831→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   832→   832→                      />
+   833→   833→                    </div>
+   834→   834→                  </div>
+   835→   835→
+   836→   836→                  <div className="space-y-2">
+   837→   837→                    <Label htmlFor="mobile" className="text-sm text-ivory/80">
+   838→   838→                      Mobile number
+   839→   839→                    </Label>
+   840→   840→                    <div className="relative">
+   841→   841→                      <Phone className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   842→   842→                      <Input
+   843→   843→                        id="mobile"
+   844→   844→                        type="tel"
+   845→   845→                        value={mobile}
+   846→   846→                        onChange={(e) => setMobile(e.target.value)}
+   847→   847→                        placeholder="+92 3XX XXXXXXX"
+   848→   848→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   849→   849→                      />
+   850→   850→                    </div>
+   851→   851→                  </div>
+   852→   852→
+   853→   853→                  <div className="space-y-2">
+   854→   854→                    <Label htmlFor="city" className="text-sm text-ivory/80">
+   855→   855→                      Current city / district
+   856→   856→                    </Label>
+   857→   857→                    <div className="relative">
+   858→   858→                      <MapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   859→   859→                      <Input
+   860→   860→                        id="city"
+   861→   861→                        value={city}
+   862→   862→                        onChange={(e) => setCity(e.target.value)}
+   863→   863→                        placeholder="e.g. Karachi"
+   864→   864→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   865→   865→                      />
+   866→   866→                    </div>
+   867→   867→                  </div>
+   868→   868→
+   869→   869→                  <div className="space-y-2 sm:col-span-2">
+   870→   870→                    <Label
+   871→   871→                      htmlFor="connectionToGB"
+   872→   872→                      className="text-sm text-ivory/80"
+   873→   873→                    >
+   874→   874→                      Your connection to Gilgit-Baltistan
+   875→   875→                    </Label>
+   876→   876→                    <div className="relative">
+   877→   877→                      <Globe2 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+   878→   878→                      <Input
+   879→   879→                        id="connectionToGB"
+   880→   880→                        value={connectionToGB}
+   881→   881→                        onChange={(e) => setConnectionToGB(e.target.value)}
+   882→   882→                        placeholder="e.g. Originally from Hunza, now based in Lahore"
+   883→   883→                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   884→   884→                      />
+   885→   885→                    </div>
+   886→   886→                  </div>
+   887→   887→                </motion.div>
+   888→   888→              )}
+   889→   889→
+   890→   890→              {/* ─────────────────────── STEP 3 ─────────────────────── */}
+   891→   891→              {step === 3 && (
+   892→   892→                <motion.div
+   893→   893→                  key="step-3"
+   894→   894→                  initial={{ opacity: 0, x: 20 }}
+   895→   895→                  animate={{ opacity: 1, x: 0 }}
+   896→   896→                  exit={{ opacity: 0, x: -20 }}
+   897→   897→                  transition={{ duration: 0.25 }}
+   898→   898→                  className="space-y-5"
+   899→   899→                >
+   900→   900→                  {/* Password + strength */}
+   901→   901→                  <div className="space-y-4">
+   902→   902→                    <div className="flex items-center gap-2 text-[#D6B77A]">
+   903→   903→                      <Lock className="h-4 w-4" />
+   904→   904→                      <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+   905→   905→                        Account security
+   906→   906→                      </span>
+   907→   907→                    </div>
+   908→   908→                    <div className="grid gap-4 sm:grid-cols-2">
+   909→   909→                      <div className="space-y-2">
+   910→   910→                        <Label
+   911→   911→                          htmlFor="password"
+   912→   912→                          className="text-sm text-ivory/80"
+   913→   913→                        >
+   914→   914→                          Password
+   915→   915→                        </Label>
+   916→   916→                        <Input
+   917→   917→                          id="password"
+   918→   918→                          type="password"
+   919→   919→                          value={password}
+   920→   920→                          onChange={(e) => setPassword(e.target.value)}
+   921→   921→                          placeholder="Create a strong password"
+   922→   922→                          className="border-white/15 bg-white/[0.04] text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+   923→   923→                        />
+   924→   924→                      </div>
+   925→   925→                      <div className="space-y-2">
+   926→   926→                        <Label
+   927→   927→                          htmlFor="confirm"
+   928→   928→                          className="text-sm text-ivory/80"
+   929→   929→                        >
+   930→   930→                          Confirm password
+   931→   931→                        </Label>
+   932→   932→                        <Input
+   933→   933→                          id="confirm"
+   934→   934→                          type="password"
+   935→   935→                          value={confirm}
+   936→   936→                          onChange={(e) => setConfirm(e.target.value)}
+   937→   937→                          placeholder="Re-enter your password"
+   938→   938→                          className={`border-white/15 bg-white/[0.04] text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A] ${
+   939→   939→                            confirm && confirm !== password
+   940→   940→                              ? "border-red-400/60"
+   941→   941→                              : ""
+   942→   942→                          }`}
+   943→   943→                        />
+   944→   944→                      </div>
+   945→   945→                    </div>
+   946→   946→
+   947→   947→                    {password && (
+   948→   948→                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+   949→   949→                        <div className="flex items-center justify-between">
+   950→   950→                          <span className="text-xs text-ivory/60">
+   951→   951→                            Password strength
+   952→   952→                          </span>
+   953→   953→                          <span
+   954→   954→                            className={`text-xs font-medium ${
+   955→   955→                              strengthScore >= 4
+   956→   956→                                ? "text-green-400"
+   957→   957→                                : strengthScore >= 3
+   958→   958→                                  ? "text-[#D6B77A]"
+   959→   959→                                  : "text-red-300"
+   960→   960→                            }`}
+   961→   961→                          >
+   962→   962→                            {strengthLabel}
+   963→   963→                          </span>
+   964→   964→                        </div>
+   965→   965→                        <Progress
+   966→   966→                          value={strengthPct}
+   967→   967→                          className="h-1.5 bg-white/10 [&>div]:bg-[#D6B77A]"
+   968→   968→                        />
+   969→   969→                        <ul className="grid grid-cols-1 gap-1 pt-1 sm:grid-cols-2">
+   970→   970→                          {(
+   971→   971→                            [
+   972→   972→                              ["length", "At least 10 characters"],
+   973→   973→                              ["upper", "One uppercase letter"],
+   974→   974→                              ["lower", "One lowercase letter"],
+   975→   975→                              ["digit", "One digit"],
+   976→   976→                              ["special", "One special character"],
+   977→   977→                            ] as const
+   978→   978→                          ).map(([key, label]) => (
+   979→   979→                            <li
+   980→   980→                              key={key}
+   981→   981→                              className="flex items-center gap-1.5 text-xs"
+   982→   982→                            >
+   983→   983→                              <span
+   984→   984→                                className={`flex h-4 w-4 items-center justify-center rounded-full ${
+   985→   985→                                  strength[key]
+   986→   986→                                    ? "bg-green-500/20 text-green-400"
+   987→   987→                                    : "bg-white/10 text-ivory/40"
+   988→   988→                                }`}
+   989→   989→                              >
+   990→   990→                                {strength[key] ? (
+   991→   991→                                  <Check className="h-3 w-3" />
+   992→   992→                                ) : (
+   993→   993→                                  <span className="text-[10px]">·</span>
+   994→   994→                                )}
+   995→   995→                              </span>
+   996→   996→                              <span
+   997→   997→                                className={
+   998→   998→                                  strength[key]
+   999→   999→                                    ? "text-ivory/80"
+  1000→  1000→                                    : "text-ivory/50"
+  1001→  1001→                                }
+  1002→  1002→                              >
+  1003→  1003→                                {label}
+  1004→  1004→                              </span>
+  1005→  1005→                            </li>
+  1006→  1006→                          ))}
+  1007→  1007→                        </ul>
+  1008→  1008→                      </div>
+  1009→  1009→                    )}
+  1010→  1010→                  </div>
+  1011→  1011→
+  1012→  1012→                  {/* Document uploads */}
+  1013→  1013→                  <div className="space-y-4">
+  1014→  1014→                    <div className="flex items-center gap-2 text-[#D6B77A]">
+  1015→  1015→                      <ShieldCheck className="h-4 w-4" />
+  1016→  1016→                      <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+  1017→  1017→                        Compulsory documents
+  1018→  1018→                      </span>
+  1019→  1019→                    </div>
+  1020→  1020→
+  1021→  1021→                    <DocUploadZone
+  1022→  1022→                      label="Picture ID Card — Front side"
+  1023→  1023→                      description="JPEG, PNG or WebP · max 5MB"
+  1024→  1024→                      icon={<IdCard className="h-5 w-5" />}
+  1025→  1025→                      uploading={uploadingFront}
+  1026→  1026→                      preview={idCardFrontPreview}
+  1027→  1027→                      fileName={idCardFrontName}
+  1028→  1028→                      done={idCardFrontPath !== ""}
+  1029→  1029→                      onFile={(f) => handleDocSelect(f, "id_card_front")}
+  1030→  1030→                    />
+  1031→  1031→                    <DocUploadZone
+  1032→  1032→                      label="Picture ID Card — Back side"
+  1033→  1033→                      description="JPEG, PNG or WebP · max 5MB"
+  1034→  1034→                      icon={<IdCard className="h-5 w-5" />}
+  1035→  1035→                      uploading={uploadingBack}
+  1036→  1036→                      preview={idCardBackPreview}
+  1037→  1037→                      fileName={idCardBackName}
+  1038→  1038→                      done={idCardBackPath !== ""}
+  1039→  1039→                      onFile={(f) => handleDocSelect(f, "id_card_back")}
+  1040→  1040→                    />
+  1041→  1041→                    <DocUploadZone
+  1042→  1042→                      label="Latest Electricity Bill of your house"
+  1043→  1043→                      description="JPEG, PNG or WebP · max 5MB"
+  1044→  1044→                      icon={<Home className="h-5 w-5" />}
+  1045→  1045→                      uploading={uploadingBill}
+  1046→  1046→                      preview={electricityBillPreview}
+  1047→  1047→                      fileName={electricityBillName}
+  1048→  1048→                      done={electricityBillPath !== ""}
+  1049→  1049→                      onFile={(f) => handleDocSelect(f, "electricity_bill")}
+  1050→  1050→                    />
+  1051→  1051→
+  1052→  1052→                    <Alert className="border-white/15 bg-white/[0.04] text-ivory">
+  1053→  1053→                      <Lock className="text-[#D6B77A]" />
+  1054→  1054→                      <AlertDescription className="text-ivory/70">
+  1055→  1055→                        These documents are compulsory for verification. They
+  1056→  1056→                        will be reviewed by an authorized administrator before
+  1057→  1057→                        your profile is approved. Documents are stored securely
+  1058→  1058→                        and never made public.
+  1059→  1059→                      </AlertDescription>
+  1060→  1060→                    </Alert>
+  1061→  1061→                  </div>
+  1062→  1062→                </motion.div>
+  1063→  1063→              )}
+  1064→  1064→
+  1065→  1065→              {/* ─────────────────────── STEP 4 ─────────────────────── */}
+  1066→  1066→              {step === 4 && (
+  1067→  1067→                <motion.div
+  1068→  1068→                  key="step-4"
+  1069→  1069→                  initial={{ opacity: 0, x: 20 }}
+  1070→  1070→                  animate={{ opacity: 1, x: 0 }}
+  1071→  1071→                  exit={{ opacity: 0, x: -20 }}
+  1072→  1072→                  transition={{ duration: 0.25 }}
+  1073→  1073→                  className="space-y-5"
+  1074→  1074→                >
+  1075→  1075→                  <div className="flex items-center gap-2 text-[#D6B77A]">
+  1076→  1076→                    <ShieldCheck className="h-4 w-4" />
+  1077→  1077→                    <span className="text-xs font-semibold tracking-[0.25em] uppercase">
+  1078→  1078→                      Eligibility & consent
+  1079→  1079→                    </span>
+  1080→  1080→                  </div>
+  1081→  1081→
+  1082→  1082→                  <div className="space-y-3">
+  1083→  1083→                    {(
+  1084→  1084→                      [
+  1085→  1085→                        [
+  1086→  1086→                          ageConfirmed,
+  1087→  1087→                          setAgeConfirmed,
+  1088→  1088→                          "I confirm I am 18 years or older",
+  1089→  1089→                        ],
+  1090→  1090→                        [
+  1091→  1091→                          ismailiEligibilityConfirmed,
+  1092→  1092→                          setIsmailiEligibilityConfirmed,
+  1093→  1093→                          "I confirm my Ismaili community eligibility",
+  1094→  1094→                        ],
+  1095→  1095→                        [
+  1096→  1096→                          matrimonialOnlyConfirmed,
+  1097→  1097→                          setMatrimonialOnlyConfirmed,
+  1098→  1098→                          "I understand this is a matrimonial-only platform",
+  1099→  1099→                        ],
+  1100→  1100→                        [
+  1101→  1101→                          privacyPolicyAccepted,
+  1102→  1102→                          setPrivacyPolicyAccepted,
+  1103→  1103→                          "I accept the Privacy Policy",
+  1104→  1104→                        ],
+  1105→  1105→                      ] as const
+  1106→  1106→                    ).map(([value, setter, label]) => (
+  1107→  1107→                      <label
+  1108→  1108→                        key={label}
+  1109→  1109→                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 transition-colors hover:border-[#D6B77A]/40"
+  1110→  1110→                      >
+  1111→  1111→                        <Checkbox
+  1112→  1112→                          checked={value}
+  1113→  1113→                          onCheckedChange={(v) => setter(v === true)}
+  1114→  1114→                          className="mt-0.5 border-white/40 data-[state=checked]:border-[#D6B77A] data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827]"
+  1115→  1115→                        />
+  1116→  1116→                        <span className="text-sm text-ivory/90">{label}</span>
+  1117→  1117→                      </label>
+  1118→  1118→                    ))}
+  1119→  1119→                  </div>
+  1120→  1120→
+  1121→  1121→                  {/* Subscription notice */}
+  1122→  1122→                  <div className="rounded-lg border-2 border-[#D6B77A]/60 bg-[#D6B77A]/[0.07] p-4">
+  1123→  1123→                    <div className="flex items-center gap-2 text-[#D6B77A]">
+  1124→  1124→                      <CreditCard className="h-4 w-4" />
+  1125→  1125→                      <span className="text-sm font-semibold">
+  1126→  1126→                        Monthly Subscription: 5,000 PKR
+  1127→  1127→                      </span>
+  1128→  1128→                    </div>
+  1129→  1129→                    <p className="mt-2 text-sm text-ivory/80">
+  1130→  1130→                      GarMinas operates on a monthly subscription of 5,000
+  1131→  1131→                      Pakistani Rupees. This covers profile verification,
+  1132→  1132→                      document review, matchmaking, and private messaging. You
+  1133→  1133→                      can browse profiles for free, but contacting members
+  1134→  1134→                      requires an active subscription.
+  1135→  1135→                    </p>
+  1136→  1136→                    <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-md border border-[#D6B77A]/30 bg-white/[0.04] p-3 transition-colors hover:border-[#D6B77A]/60">
+  1137→  1137→                      <Checkbox
+  1138→  1138→                        checked={subscriptionAccepted}
+  1139→  1139→                        onCheckedChange={(v) =>
+  1140→  1140→                          setSubscriptionAccepted(v === true)
+  1141→  1141→                        }
+  1142→  1142→                        className="mt-0.5 border-[#D6B77A]/60 data-[state=checked]:border-[#D6B77A] data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827]"
+  1143→  1143→                      />
+  1144→  1144→                      <span className="text-sm text-ivory/90">
+  1145→  1145→                        I acknowledge the monthly subscription fee of 5,000 PKR
+  1146→  1146→                        and understand I will need to submit payment after my
+  1147→  1147→                        documents are verified.
+  1148→  1148→                      </span>
+  1149→  1149→                    </label>
+  1150→  1150→                  </div>
+  1151→  1151→                </motion.div>
+  1152→  1152→              )}
+  1153→  1153→            </AnimatePresence>
+  1154→  1154→          </CardContent>
+  1155→  1155→
+  1156→  1156→          <CardFooter className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  1157→  1157→            <div className="flex w-full gap-2 sm:w-auto">
+  1158→  1158→              {step > 1 && (
+  1159→  1159→                <Button
+  1160→  1160→                  type="button"
+  1161→  1161→                  variant="ghost"
+  1162→  1162→                  onClick={back}
+  1163→  1163→                  disabled={loading}
+  1164→  1164→                  className="text-ivory/70 hover:bg-white/5 hover:text-ivory"
+  1165→  1165→                >
+  1166→  1166→                  <ArrowLeft className="h-4 w-4" /> Back
+  1167→  1167→                </Button>
+  1168→  1168→              )}
+  1169→  1169→            </div>
+  1170→  1170→
+  1171→  1171→            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+  1172→  1172→              <button
+  1173→  1173→                type="button"
+  1174→  1174→                onClick={() => setView("login")}
+  1175→  1175→                className="order-2 text-center text-sm text-ivory/70 underline-offset-4 hover:text-ivory hover:underline sm:order-1"
+  1176→  1176→              >
+  1177→  1177→                Already have an account?{" "}
+  1178→  1178→                <span className="text-[#D6B77A]">Sign in</span>
+  1179→  1179→              </button>
+  1180→  1180→
+  1181→  1181→              {step < TOTAL_STEPS ? (
+  1182→  1182→                <Button
+  1183→  1183→                  type="button"
+  1184→  1184→                  onClick={next}
+  1185→  1185→                  className="order-1 w-full bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] sm:order-2 sm:w-auto"
+  1186→  1186→                >
+  1187→  1187→                  Continue <ArrowRight className="h-4 w-4" />
+  1188→  1188→                </Button>
+  1189→  1189→              ) : (
+  1190→  1190→                <Button
+  1191→  1191→                  type="button"
+  1192→  1192→                  onClick={handleSubmit}
+  1193→  1193→                  disabled={loading}
+  1194→  1194→                  className="order-1 w-full bg-[#D6B77A] text-[#111827] hover:bg-[#E8D9B5] sm:order-2 sm:w-auto"
+  1195→  1195→                >
+  1196→  1196→                  {loading ? (
+  1197→  1197→                    <>
+  1198→  1198→                      <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+  1199→  1199→                    </>
+  1200→  1200→                  ) : (
+  1201→  1201→                    <>
+  1202→  1202→                      <Sparkles className="h-4 w-4" /> Create Account
+  1203→  1203→                    </>
+  1204→  1204→                  )}
+  1205→  1205→                </Button>
+  1206→  1206→              )}
+  1207→  1207→            </div>
+  1208→  1208→          </CardFooter>
+  1209→  1209→        </Card>
+  1210→  1210→      </motion.div>
+  1211→  1211→    </div>
+  1212→  1212→  );
+  1213→  1213→}
+  1214→  1214→

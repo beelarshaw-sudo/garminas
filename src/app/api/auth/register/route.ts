@@ -11,24 +11,26 @@ import {
   isDev,
   recordAudit,
 } from "@/lib/auth";
+import { getCurrencyForCountry } from "@/lib/countries";
 
 const RegisterSchema = z.object({
   // Account type: INDIVIDUAL (self) or PARENT (searching for child)
   accountType: z.enum(["INDIVIDUAL", "PARENT"]).default("INDIVIDUAL"),
-  // If PARENT, the parent's own details + child details
-  parentRelationship: z.string().optional(), // "father", "mother", "guardian"
-  // The person whose profile this is (self, or child if parent is registering)
+  parentRelationship: z.string().optional(),
+  // The person whose profile this is
   fullName: z.string().min(2, "Full name is required."),
   dateOfBirth: z.string().min(1, "Date of birth is required."),
   gender: z.enum(["Male", "Female", "Prefer not to say"]),
   email: z.string().trim().toLowerCase().email("A valid email is required."),
   mobile: z.string().min(7, "A valid mobile number is required."),
+  callingCode: z.string().min(1, "Country calling code is required."),
   password: z.string().min(1, "Password is required."),
-  city: z.string().min(2, "Current city or district is required."),
-  connectionToGB: z
-    .string()
-    .min(2, "Your connection to Gilgit-Baltistan is required."),
-  // Compulsory document uploads (file paths returned by /api/upload)
+  // ── International fields ──
+  country: z.string().min(2, "Country of residence is required."),
+  nationality: z.string().min(2, "Nationality is required."),
+  region: z.string().optional(), // State / province / region
+  city: z.string().min(2, "Current city is required."),
+  // Compulsory document uploads
   idCardFrontPath: z.string().min(1, "ID card (front) is compulsory."),
   idCardBackPath: z.string().min(1, "ID card (back) is compulsory."),
   electricityBillPath: z.string().min(1, "Latest electricity bill is compulsory."),
@@ -45,7 +47,10 @@ const RegisterSchema = z.object({
     message: "You must confirm you are 18 or older.",
   }),
   subscriptionAccepted: z.boolean().refine((v) => v === true, {
-    message: "You must acknowledge the monthly subscription fee of 5000 PKR.",
+    message: "You must acknowledge the monthly subscription fee.",
+  }),
+  genuineIntentionsConfirmed: z.boolean().refine((v) => v === true, {
+    message: "You must confirm genuine matrimonial intentions.",
   }),
 });
 
@@ -141,18 +146,27 @@ export async function POST(req: NextRequest) {
     data: {
       email: d.email.toLowerCase(),
       phone: d.mobile,
+      callingCode: d.callingCode,
       passwordHash: hash,
       passwordSalt: salt,
       emailVerifyToken: emailToken,
       emailVerifyExpires: emailExpires,
-      phoneOtpHash: otp, // sandbox only — production should hash
+      phoneOtpHash: otp,
       phoneOtpExpires: otpExpires,
       role: "MEMBER",
       status: "PENDING",
       accountType: d.accountType,
-      // Subscription starts as NONE — user must pay 5000 PKR after document verification
+      // ── Global fields ──
+      country: d.country,
+      nationality: d.nationality,
+      region: d.region,
+      currency: getCurrencyForCountry(d.country),
+      // Subscription starts as NONE
       subscriptionStatus: "NONE",
       subscriptionAmount: 5000,
+      // Application + community verification start as NOT_STARTED / NOT_SUBMITTED
+      applicationStatus: "NOT_STARTED",
+      communityVerificationStatus: "NOT_SUBMITTED",
     },
   });
 
@@ -165,7 +179,7 @@ export async function POST(req: NextRequest) {
       age,
       gender: d.gender,
       city: d.city,
-      connectionToGB: d.connectionToGB,
+      connectionToGB: `${d.nationality} — ${d.country}`, // backward compat: store nationality + country
       // If parent is registering, record the parent relationship
       createdByParentId: d.accountType === "PARENT" ? user.id : null,
       parentRelationship: d.accountType === "PARENT" ? d.parentRelationship : null,

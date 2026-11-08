@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNav, useSession } from "@/lib/store";
+import { COUNTRIES, type CountryInfo } from "@/lib/countries";
 
 type AccountType = "INDIVIDUAL" | "PARENT" | "";
 type Gender = "Male" | "Female" | "Prefer not to say" | "";
@@ -90,6 +91,12 @@ const STEP_LABELS = [
 ];
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Deduplicate the country list (the source list contains a duplicate
+// United States entry) so the registration dropdowns render cleanly.
+const UNIQUE_COUNTRIES: CountryInfo[] = Array.from(
+  new Map(COUNTRIES.map((c) => [c.code, c])).values(),
+);
 
 interface DocUploadZoneProps {
   label: string;
@@ -219,7 +226,10 @@ export default function RegisterView() {
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [city, setCity] = useState("");
-  const [connectionToGB, setConnectionToGB] = useState("");
+  const [country, setCountry] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [region, setRegion] = useState("");
+  const [callingCode, setCallingCode] = useState("");
 
   // Step 3 — Security
   const [password, setPassword] = useState("");
@@ -247,6 +257,8 @@ export default function RegisterView() {
     useState(false);
   const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
   const [subscriptionAccepted, setSubscriptionAccepted] = useState(false);
+  const [genuineIntentionsConfirmed, setGenuineIntentionsConfirmed] =
+    useState(false);
 
   const strength = useMemo(() => checkStrength(password), [password]);
   const strengthScore = Object.values(strength).filter(Boolean).length;
@@ -274,7 +286,9 @@ export default function RegisterView() {
     /.+@.+\..+/.test(email) &&
     mobile.trim().length >= 7 &&
     city.trim().length >= 2 &&
-    connectionToGB.trim().length >= 2;
+    country.trim().length >= 2 &&
+    nationality.trim().length >= 2 &&
+    callingCode.trim().length >= 1;
 
   const step3Valid =
     password.length > 0 &&
@@ -293,9 +307,18 @@ export default function RegisterView() {
     ismailiEligibilityConfirmed &&
     matrimonialOnlyConfirmed &&
     privacyPolicyAccepted &&
-    subscriptionAccepted;
+    subscriptionAccepted &&
+    genuineIntentionsConfirmed;
 
   const progressPct = (step / TOTAL_STEPS) * 100;
+
+  // When the user selects a country of residence, auto-populate the
+  // international calling code (e.g. Pakistan → +92).
+  function handleCountryChange(code: string) {
+    setCountry(code);
+    const info = UNIQUE_COUNTRIES.find((c) => c.code === code);
+    if (info) setCallingCode(info.callingCode);
+  }
 
   // Reusable upload helper — posts multipart/form-data to /api/upload
   // and returns the stored file path.
@@ -421,9 +444,12 @@ export default function RegisterView() {
           gender,
           email,
           mobile,
+          callingCode,
           password,
           city,
-          connectionToGB,
+          country,
+          nationality,
+          region,
           idCardFrontPath,
           idCardBackPath,
           electricityBillPath,
@@ -432,6 +458,7 @@ export default function RegisterView() {
           privacyPolicyAccepted,
           ageConfirmed,
           subscriptionAccepted,
+          genuineIntentionsConfirmed,
         }),
       });
       const data = (await res.json()) as RegisterResult;
@@ -564,8 +591,8 @@ export default function RegisterView() {
               Create your GarMinas account
             </CardTitle>
             <CardDescription className="text-ivory/70">
-              A private, verified matrimonial platform for the Ismaili
-              community connected to Gilgit-Baltistan.
+              A private, verified matrimonial platform for the global Ismaili
+              community — connecting Ismailis worldwide.
             </CardDescription>
 
             {/* Step indicator + progress */}
@@ -635,8 +662,8 @@ export default function RegisterView() {
                     <Info className="text-[#D6B77A]" />
                     <AlertDescription className="text-ivory/80">
                       GarMinas is exclusively intended for adult Ismailis
-                      connected to Gilgit-Baltistan and is dedicated solely to
-                      matrimonial purposes.
+                      worldwide and is dedicated solely to matrimonial
+                      purposes.
                     </AlertDescription>
                   </Alert>
 
@@ -833,26 +860,81 @@ export default function RegisterView() {
                     </div>
                   </div>
 
+                  {/* Country of residence — drives the calling code */}
                   <div className="space-y-2">
-                    <Label htmlFor="mobile" className="text-sm text-ivory/80">
-                      Mobile number
+                    <Label htmlFor="country" className="text-sm text-ivory/80">
+                      Country of residence
+                    </Label>
+                    <Select
+                      value={country}
+                      onValueChange={handleCountryChange}
+                    >
+                      <SelectTrigger
+                        id="country"
+                        className="w-full border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+                      >
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIQUE_COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Nationality */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="nationality"
+                      className="text-sm text-ivory/80"
+                    >
+                      Nationality
+                    </Label>
+                    <Select
+                      value={nationality}
+                      onValueChange={setNationality}
+                    >
+                      <SelectTrigger
+                        id="nationality"
+                        className="w-full border-white/15 bg-white/[0.04] text-ivory focus:border-[#D6B77A]"
+                      >
+                        <SelectValue placeholder="Select nationality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIQUE_COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.flag} {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* State / Province / Region (optional) */}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="region" className="text-sm text-ivory/80">
+                      State / Province / Region{" "}
+                      <span className="text-ivory/40">(optional)</span>
                     </Label>
                     <div className="relative">
-                      <Phone className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                      <MapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
                       <Input
-                        id="mobile"
-                        type="tel"
-                        value={mobile}
-                        onChange={(e) => setMobile(e.target.value)}
-                        placeholder="+92 3XX XXXXXXX"
+                        id="region"
+                        value={region}
+                        onChange={(e) => setRegion(e.target.value)}
+                        placeholder="e.g. Sindh, Ontario, Dubai Emirate"
                         className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
                       />
                     </div>
                   </div>
 
+                  {/* Current city */}
                   <div className="space-y-2">
                     <Label htmlFor="city" className="text-sm text-ivory/80">
-                      Current city / district
+                      Current city
                     </Label>
                     <div className="relative">
                       <MapPin className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
@@ -866,23 +948,32 @@ export default function RegisterView() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label
-                      htmlFor="connectionToGB"
-                      className="text-sm text-ivory/80"
-                    >
-                      Your connection to Gilgit-Baltistan
+                  {/* Mobile number with auto-populated calling code prefix */}
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile" className="text-sm text-ivory/80">
+                      Mobile number
                     </Label>
-                    <div className="relative">
-                      <Globe2 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#D6B77A]/70" />
+                    <div className="flex">
+                      <div
+                        className={`flex select-none items-center rounded-l-md border border-r-0 border-white/15 bg-white/[0.06] px-3 text-sm ${
+                          callingCode ? "text-ivory" : "text-ivory/40"
+                        }`}
+                      >
+                        {callingCode || "+__"}
+                      </div>
                       <Input
-                        id="connectionToGB"
-                        value={connectionToGB}
-                        onChange={(e) => setConnectionToGB(e.target.value)}
-                        placeholder="e.g. Originally from Hunza, now based in Lahore"
-                        className="border-white/15 bg-white/[0.04] pl-9 text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
+                        id="mobile"
+                        type="tel"
+                        value={mobile}
+                        onChange={(e) => setMobile(e.target.value)}
+                        placeholder="3XX XXXXXXX"
+                        className="rounded-l-none border-white/15 bg-white/[0.04] text-ivory placeholder:text-ivory/40 focus:border-[#D6B77A]"
                       />
                     </div>
+                    <p className="text-xs text-ivory/50">
+                      Calling code is set automatically from your country of
+                      residence.
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -1096,6 +1187,11 @@ export default function RegisterView() {
                           matrimonialOnlyConfirmed,
                           setMatrimonialOnlyConfirmed,
                           "I understand this is a matrimonial-only platform",
+                        ],
+                        [
+                          genuineIntentionsConfirmed,
+                          setGenuineIntentionsConfirmed,
+                          "I confirm that I am registering with genuine matrimonial intentions and that the information I provide is truthful and accurate.",
                         ],
                         [
                           privacyPolicyAccepted,

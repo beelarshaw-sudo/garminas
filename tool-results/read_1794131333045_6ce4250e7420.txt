@@ -1,0 +1,654 @@
+     1→     1→     1→"use client";
+     2→     2→     2→
+     3→     3→     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→     4→     4→import { motion } from "framer-motion";
+     5→     5→     5→import {
+     6→     6→     6→  CheckCircle2,
+     7→     7→     7→  Clock,
+     8→     8→     8→  CreditCard,
+     9→     9→     9→  FileCheck2,
+    10→    10→    10→  Loader2,
+    11→    11→    11→  ShieldCheck,
+    12→    12→    12→  Upload,
+    13→    13→    13→  X,
+    14→    14→    14→  Smartphone,
+    15→    15→    15→  Building2,
+    16→    16→    16→  Wallet,
+    17→    17→    17→  Copy,
+    18→    18→    18→} from "lucide-react";
+    19→    19→    19→import { toast } from "sonner";
+    20→    20→    20→import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+    21→    21→    21→import { Button } from "@/components/ui/button";
+    22→    22→    22→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+    23→    23→    23→import { Input } from "@/components/ui/input";
+    24→    24→    24→import { Label } from "@/components/ui/label";
+    25→    25→    25→import { Separator } from "@/components/ui/separator";
+    26→    26→    26→
+    27→    27→    27→type PaymentMethod = "EASYPAISA" | "JAZZCASH" | "SADAPAY" | "BANK_TRANSFER" | "CREDIT_CARD";
+    28→    28→    28→
+    29→    29→    29→interface PaymentMethodInfo {
+    30→    30→    30→  id: PaymentMethod;
+    31→    31→    31→  label: string;
+    32→    32→    32→  icon: typeof CreditCard;
+    33→    33→    33→  accountName: string;
+    34→    34→    34→  accountNumber: string;
+    35→    35→    35→  instructions: string;
+    36→    36→    36→  color: string;
+    37→    37→    37→}
+    38→    38→    38→
+    39→    39→    39→const PAYMENT_METHODS: PaymentMethodInfo[] = [
+    40→    40→    40→  {
+    41→    41→    41→    id: "EASYPAISA",
+    42→    42→    42→    label: "EasyPaisa",
+    43→    43→    43→    icon: Smartphone,
+    44→    44→    44→    accountName: "GarMinas Matrimonial",
+    45→    45→    45→    accountNumber: "0300-1234567",
+    46→    46→    46→    instructions: "Open EasyPaisa App → Send Money → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    47→    47→    47→    color: "#00A651",
+    48→    48→    48→  },
+    49→    49→    49→  {
+    50→    50→    50→    id: "JAZZCASH",
+    51→    51→    51→    label: "JazzCash",
+    52→    52→    52→    icon: Wallet,
+    53→    53→    53→    accountName: "GarMinas Matrimonial",
+    54→    54→    54→    accountNumber: "0300-7654321",
+    55→    55→    55→    instructions: "Open JazzCash App → Send Money → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    56→    56→    56→    color: "#ED1C24",
+    57→    57→    57→  },
+    58→    58→    58→  {
+    59→    59→    59→    id: "SADAPAY",
+    60→    60→    60→    label: "SadaPay",
+    61→    61→    61→    icon: Wallet,
+    62→    62→    62→    accountName: "GarMinas Matrimonial",
+    63→    63→    63→    accountNumber: "0345-9876543",
+    64→    64→    64→    instructions: "Open SadaPay App → Send → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    65→    65→    65→    color: "#6C5CE7",
+    66→    66→    66→  },
+    67→    67→    67→  {
+    68→    68→    68→    id: "BANK_TRANSFER",
+    69→    69→    69→    label: "Bank Transfer",
+    70→    70→    70→    icon: Building2,
+    71→    71→    71→    accountName: "GarMinas Matrimonial Services",
+    72→    72→    72→    accountNumber: "PK36MEZN0001234567890",
+    73→    73→    73→    instructions: "Transfer 5,000 PKR to the bank account above via your banking app or ATM. Save the transaction receipt.",
+    74→    74→    74→    color: "#2D3436",
+    75→    75→    75→  },
+    76→    76→    76→  {
+    77→    77→    77→    id: "CREDIT_CARD",
+    78→    78→    78→    label: "Credit / Debit Card",
+    79→    79→    79→    icon: CreditCard,
+    80→    80→    80→    accountName: "Online Payment Portal",
+    81→    81→    81→    accountNumber: "Secure payment link will be provided",
+    82→    82→    82→    instructions: "Contact support to receive a secure payment link for your credit/debit card. You will receive a receipt by email.",
+    83→    83→    83→    color: "#0984E3",
+    84→    84→    84→  },
+    85→    85→    85→];
+    86→    86→    86→
+    87→    87→    87→interface SubscriptionInfo {
+    88→    88→    88→  subscriptionStatus: string;
+    89→    89→    89→  subscriptionPlan: string;
+    90→    90→    90→  subscriptionAmount: number;
+    91→    91→    91→  subscriptionStartsAt: string | null;
+    92→    92→    92→  subscriptionExpiresAt: string | null;
+    93→    93→    93→  accountType: string;
+    94→    94→    94→}
+    95→    95→    95→
+    96→    96→    96→interface PaymentRecord {
+    97→    97→    97→  id: string;
+    98→    98→    98→  amount: number;
+    99→    99→    99→  method: string;
+   100→   100→   100→  transactionRef: string;
+   101→   101→   101→  status: string;
+   102→   102→   102→  createdAt: string;
+   103→   103→   103→  receiptPath?: string;
+   104→   104→   104→}
+   105→   105→   105→
+   106→   106→   106→interface UploadResponse {
+   107→   107→   107→  ok: boolean;
+   108→   108→   108→  path?: string;
+   109→   109→   109→  error?: string;
+   110→   110→   110→}
+   111→   111→   111→
+   112→   112→   112→export default function SubscriptionView() {
+   113→   113→   113→  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("EASYPAISA");
+   114→   114→   114→  const [transactionRef, setTransactionRef] = useState("");
+   115→   115→   115→  const [receiptPath, setReceiptPath] = useState<string | null>(null);
+   116→   116→   116→  const [uploading, setUploading] = useState(false);
+   117→   117→   117→  const [submitting, setSubmitting] = useState(false);
+   118→   118→   118→  const [submitted, setSubmitted] = useState(false);
+   119→   119→   119→  const [subInfo, setSubInfo] = useState<SubscriptionInfo | null>(null);
+   120→   120→   120→  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+   121→   121→   121→  const [loading, setLoading] = useState(true);
+   122→   122→   122→  const fileInputRef = useRef<HTMLInputElement>(null);
+   123→   123→   123→
+   124→   124→   124→  const fetchStatus = useCallback(async () => {
+   125→   125→   125→    try {
+   126→   126→   126→      const res = await fetch("/api/subscription/status");
+   127→   127→   127→      if (res.ok) {
+   128→   128→   128→        const data = await res.json();
+   129→   129→   129→        setSubInfo(data.subscription);
+   130→   130→   130→        setPayments(data.payments || []);
+   131→   131→   131→      }
+   132→   132→   132→    } catch {
+   133→   133→   133→      // ignore
+   134→   134→   134→    } finally {
+   135→   135→   135→      setLoading(false);
+   136→   136→   136→    }
+   137→   137→   137→  }, []);
+   138→   138→   138→
+   139→   139→   139→  useEffect(() => {
+   140→   140→   140→    fetchStatus();
+   141→   141→   141→  }, [fetchStatus]);
+   142→   142→   142→
+   143→   143→   143→  const uploadFile = useCallback(async (file: File) => {
+   144→   144→   144→    if (!file.type.startsWith("image/")) {
+   145→   145→   145→      toast.error("Please upload an image file (JPEG, PNG, or WebP).");
+   146→   146→   146→      return;
+   147→   147→   147→    }
+   148→   148→   148→    if (file.size > 5 * 1024 * 1024) {
+   149→   149→   149→      toast.error("File is too large. Maximum size is 5 MB.");
+   150→   150→   150→      return;
+   151→   151→   151→    }
+   152→   152→   152→    setUploading(true);
+   153→   153→   153→    try {
+   154→   154→   154→      const formData = new FormData();
+   155→   155→   155→      formData.append("file", file);
+   156→   156→   156→      formData.append("type", "payment_receipt");
+   157→   157→   157→      const res = await fetch("/api/upload", {
+   158→   158→   158→        method: "POST",
+   159→   159→   159→        body: formData,
+   160→   160→   160→      });
+   161→   161→   161→      const data: UploadResponse = await res.json();
+   162→   162→   162→      if (data.ok && data.path) {
+   163→   163→   163→        setReceiptPath(data.path);
+   164→   164→   164→        toast.success("Payment screenshot uploaded successfully.");
+   165→   165→   165→      } else {
+   166→   166→   166→        toast.error(data.error || "Upload failed.");
+   167→   167→   167→      }
+   168→   168→   168→    } catch {
+   169→   169→   169→      toast.error("Network error during upload.");
+   170→   170→   170→    } finally {
+   171→   171→   171→      setUploading(false);
+   172→   172→   172→    }
+   173→   173→   173→  }, []);
+   174→   174→   174→
+   175→   175→   175→  const handleSubmit = async () => {
+   176→   176→   176→    if (!transactionRef.trim()) {
+   177→   177→   177→      toast.error("Please enter your transaction reference / ID.");
+   178→   178→   178→      return;
+   179→   179→   179→    }
+   180→   180→   180→    if (!receiptPath) {
+   181→   181→   181→      toast.error("Please upload a screenshot of your payment confirmation.");
+   182→   182→   182→      return;
+   183→   183→   183→    }
+   184→   184→   184→    setSubmitting(true);
+   185→   185→   185→    try {
+   186→   186→   186→      const res = await fetch("/api/subscription/payment", {
+   187→   187→   187→        method: "POST",
+   188→   188→   188→        headers: { "Content-Type": "application/json" },
+   189→   189→   189→        body: JSON.stringify({
+   190→   190→   190→          method: selectedMethod,
+   191→   191→   191→          transactionRef: transactionRef.trim(),
+   192→   192→   192→          receiptPath,
+   193→   193→   193→        }),
+   194→   194→   194→      });
+   195→   195→   195→      const data = await res.json();
+   196→   196→   196→      if (res.ok) {
+   197→   197→   197→        toast.success("Payment submitted for verification.");
+   198→   198→   198→        setSubmitted(true);
+   199→   199→   199→        setTransactionRef("");
+   200→   200→   200→        setReceiptPath(null);
+   201→   201→   201→        fetchStatus();
+   202→   202→   202→      } else {
+   203→   203→   203→        toast.error(data.error || "Failed to submit payment.");
+   204→   204→   204→      }
+   205→   205→   205→    } catch {
+   206→   206→   206→      toast.error("Network error.");
+   207→   207→   207→    } finally {
+   208→   208→   208→      setSubmitting(false);
+   209→   209→   209→    }
+   210→   210→   210→  };
+   211→   211→   211→
+   212→   212→   212→  const copyToClipboard = (text: string) => {
+   213→   213→   213→    navigator.clipboard.writeText(text);
+   214→   214→   214→    toast.success("Copied to clipboard.");
+   215→   215→   215→  };
+   216→   216→   216→
+   217→   217→   217→  const isActive = subInfo?.subscriptionStatus === "ACTIVE";
+   218→   218→   218→  const isPending = subInfo?.subscriptionStatus === "PENDING";
+   219→   219→   219→  const currentMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod)!;
+   220→   220→   220→
+   221→   221→   221→  if (loading) {
+   222→   222→   222→    return (
+   223→   223→   223→      <div className="flex min-h-[60vh] items-center justify-center">
+   224→   224→   224→        <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#D6B77A" }} />
+   225→   225→   225→      </div>
+   226→   226→   226→    );
+   227→   227→   227→  }
+   228→   228→   228→
+   229→   229→   229→  return (
+   230→   230→   230→    <div className="relative min-h-[calc(100vh-4rem)] bg-navy-gradient overflow-hidden px-4 py-12">
+   231→   231→   231→      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[#D6B77A]/10 blur-3xl animate-float-slow" />
+   232→   232→   232→      <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#C88F91]/10 blur-3xl animate-float" />
+   233→   233→   233→
+   234→   234→   234→      <motion.div
+   235→   235→   235→        initial={{ opacity: 0, y: 12 }}
+   236→   236→   236→        animate={{ opacity: 1, y: 0 }}
+   237→   237→   237→        transition={{ duration: 0.4 }}
+   238→   238→   238→        className="relative mx-auto max-w-3xl space-y-6"
+   239→   239→   239→      >
+   240→   240→   240→        {/* Header */}
+   241→   241→   241→        <div className="text-center">
+   242→   242→   242→          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ring-gold bg-white/5">
+   243→   243→   243→            <CreditCard className="h-5 w-5" style={{ color: "#D6B77A" }} />
+   244→   244→   244→          </div>
+   245→   245→   245→          <h1 className="font-serif text-3xl text-ivory">Subscription</h1>
+   246→   246→   246→          <p className="mt-1 text-sm text-ivory/70">
+   247→   247→   247→            Activate your monthly subscription to contact members.
+   248→   248→   248→          </p>
+   249→   249→   249→        </div>
+   250→   250→   250→
+   251→   251→   251→        {/* Active / Pending status banner */}
+   252→   252→   252→        {isActive && subInfo?.subscriptionExpiresAt && (
+   253→   253→   253→          <Card className="border-emerald-500/30 bg-emerald-500/10 backdrop-blur">
+   254→   254→   254→            <CardContent className="flex items-center gap-3 p-4">
+   255→   255→   255→              <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+   256→   256→   256→              <div>
+   257→   257→   257→                <p className="font-serif text-sm text-ivory">Subscription Active</p>
+   258→   258→   258→                <p className="text-xs text-ivory/70">
+   259→   259→   259→                  Valid until{" "}
+   260→   260→   260→                  {new Date(subInfo.subscriptionExpiresAt).toLocaleDateString("en-PK", {
+   261→   261→   261→                    year: "numeric",
+   262→   262→   262→                    month: "long",
+   263→   263→   263→                    day: "numeric",
+   264→   264→   264→                  })}
+   265→   265→   265→                </p>
+   266→   266→   266→              </div>
+   267→   267→   267→            </CardContent>
+   268→   268→   268→          </Card>
+   269→   269→   269→        )}
+   270→   270→   270→
+   271→   271→   271→        {isPending && (
+   272→   272→   272→          <Card className="border-[#D6B77A]/30 bg-[#D6B77A]/10 backdrop-blur">
+   273→   273→   273→            <CardContent className="flex items-center gap-3 p-4">
+   274→   274→   274→              <Clock className="h-6 w-6" style={{ color: "#D6B77A" }} />
+   275→   275→   275→              <div>
+   276→   276→   276→                <p className="font-serif text-sm text-ivory">Payment Under Verification</p>
+   277→   277→   277→                <p className="text-xs text-ivory/70">
+   278→   278→   278→                  An administrator is reviewing your payment. You will be notified once
+   279→   279→   279→                  your subscription is activated.
+   280→   280→   280→                </p>
+   281→   281→   281→              </div>
+   282→   282→   282→            </CardContent>
+   283→   283→   283→          </Card>
+   284→   284→   284→        )}
+   285→   285→   285→
+   286→   286→   286→        {/* Pricing card */}
+   287→   287→   287→        <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
+   288→   288→   288→          <CardHeader>
+   289→   289→   289→            <CardTitle className="text-center font-serif text-2xl text-ivory">
+   290→   290→   290→              Monthly Subscription
+   291→   291→   291→            </CardTitle>
+   292→   292→   292→            <CardDescription className="text-center text-ivory/70">
+   293→   293→   293→              Browsing profiles is free. Contacting members requires an active subscription.
+   294→   294→   294→            </CardDescription>
+   295→   295→   295→          </CardHeader>
+   296→   296→   296→          <CardContent>
+   297→   297→   297→            <div className="mb-6 text-center">
+   298→   298→   298→              <span
+   299→   299→   299→                className="font-serif text-5xl font-bold"
+   300→   300→   300→                style={{
+   301→   301→   301→                  background: "linear-gradient(135deg, #E8D9B5, #D6B77A, #B8964A)",
+   302→   302→   302→                  WebkitBackgroundClip: "text",
+   303→   303→   303→                  WebkitTextFillColor: "transparent",
+   304→   304→   304→                }}
+   305→   305→   305→              >
+   306→   306→   306→                5,000 PKR
+   307→   307→   307→              </span>
+   308→   308→   308→              <p className="mt-1 text-sm text-ivory/60">per month</p>
+   309→   309→   309→            </div>
+   310→   310→   310→            <div className="grid grid-cols-2 gap-3 text-sm">
+   311→   311→   311→              {[
+   312→   312→   312→                "Profile verification",
+   313→   313→   313→                "Document review",
+   314→   314→   314→                "Matchmaking & discovery",
+   315→   315→   315→                "Send matrimonial proposals",
+   316→   316→   316→                "Private messaging",
+   317→   317→   317→                "Priority support",
+   318→   318→   318→              ].map((item) => (
+   319→   319→   319→                <div key={item} className="flex items-center gap-2 text-ivory/80">
+   320→   320→   320→                  <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "#D6B77A" }} />
+   321→   321→   321→                  <span>{item}</span>
+   322→   322→   322→                </div>
+   323→   323→   323→              ))}
+   324→   324→   324→            </div>
+   325→   325→   325→          </CardContent>
+   326→   326→   326→        </Card>
+   327→   327→   327→
+   328→   328→   328→        {/* Payment form — only show if not active */}
+   329→   329→   329→        {!isActive && !submitted && (
+   330→   330→   330→          <>
+   331→   331→   331→            {/* Step 1: Select payment method */}
+   332→   332→   332→            <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
+   333→   333→   333→              <CardHeader>
+   334→   334→   334→                <CardTitle className="font-serif text-xl text-ivory">
+   335→   335→   335→                  Step 1 — Choose a payment method
+   336→   336→   336→                </CardTitle>
+   337→   337→   337→              </CardHeader>
+   338→   338→   338→              <CardContent className="space-y-3">
+   339→   339→   339→                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   340→   340→   340→                  {PAYMENT_METHODS.map((method) => {
+   341→   341→   341→                    const Icon = method.icon;
+   342→   342→   342→                    const isSelected = selectedMethod === method.id;
+   343→   343→   343→                    return (
+   344→   344→   344→                      <button
+   345→   345→   345→                        key={method.id}
+   346→   346→   346→                        onClick={() => setSelectedMethod(method.id)}
+   347→   347→   347→                        className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
+   348→   348→   348→                          isSelected
+   349→   349→   349→                            ? "border-[#D6B77A] bg-[#D6B77A]/15"
+   350→   350→   350→                            : "border-white/10 bg-white/5 hover:border-white/20"
+   351→   351→   351→                        }`}
+   352→   352→   352→                      >
+   353→   353→   353→                        <div
+   354→   354→   354→                          className="flex h-10 w-10 items-center justify-center rounded-lg"
+   355→   355→   355→                          style={{ background: `${method.color}25` }}
+   356→   356→   356→                        >
+   357→   357→   357→                          <Icon className="h-5 w-5" style={{ color: method.color }} />
+   358→   358→   358→                        </div>
+   359→   359→   359→                        <div className="flex-1">
+   360→   360→   360→                          <p className="text-sm font-medium text-ivory">{method.label}</p>
+   361→   361→   361→                          <p className="text-xs text-ivory/50">{method.accountNumber}</p>
+   362→   362→   362→                        </div>
+   363→   363→   363→                        {isSelected && (
+   364→   364→   364→                          <CheckCircle2 className="h-5 w-5" style={{ color: "#D6B77A" }} />
+   365→   365→   365→                        )}
+   366→   366→   366→                      </button>
+   367→   367→   367→                    );
+   368→   368→   368→                  })}
+   369→   369→   369→                </div>
+   370→   370→   370→              </CardContent>
+   371→   371→   371→            </Card>
+   372→   372→   372→
+   373→   373→   373→            {/* Step 2: Payment instructions */}
+   374→   374→   374→            <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
+   375→   375→   375→              <CardHeader>
+   376→   376→   376→                <CardTitle className="font-serif text-xl text-ivory">
+   377→   377→   377→                  Step 2 — Send 5,000 PKR
+   378→   378→   378→                </CardTitle>
+   379→   379→   379→              </CardHeader>
+   380→   380→   380→              <CardContent className="space-y-4">
+   381→   381→   381→                {/* Account details */}
+   382→   382→   382→                <div className="rounded-lg border border-[#D6B77A]/20 bg-white/5 p-4">
+   383→   383→   383→                  <div className="mb-3 flex items-center gap-2">
+   384→   384→   384→                    <currentMethod.icon
+   385→   385→   385→                      className="h-5 w-5"
+   386→   386→   386→                      style={{ color: currentMethod.color }}
+   387→   387→   387→                    />
+   388→   388→   388→                    <span className="font-serif text-sm text-ivory">
+   389→   389→   389→                      {currentMethod.label} — Account Details
+   390→   390→   390→                    </span>
+   391→   391→   391→                  </div>
+   392→   392→   392→                  <div className="space-y-2">
+   393→   393→   393→                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+   394→   394→   394→                      <div>
+   395→   395→   395→                        <p className="text-[10px] uppercase tracking-wider text-ivory/50">
+   396→   396→   396→                          Account Name
+   397→   397→   397→                        </p>
+   398→   398→   398→                        <p className="text-sm text-ivory">{currentMethod.accountName}</p>
+   399→   399→   399→                      </div>
+   400→   400→   400→                    </div>
+   401→   401→   401→                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+   402→   402→   402→                      <div className="flex-1">
+   403→   403→   403→                        <p className="text-[10px] uppercase tracking-wider text-ivory/50">
+   404→   404→   404→                          Account Number
+   405→   405→   405→                        </p>
+   406→   406→   406→                        <p className="font-mono text-sm text-ivory">
+   407→   407→   407→                          {currentMethod.accountNumber}
+   408→   408→   408→                        </p>
+   409→   409→   409→                      </div>
+   410→   410→   410→                      <button
+   411→   411→   411→                        onClick={() => copyToClipboard(currentMethod.accountNumber)}
+   412→   412→   412→                        className="rounded-md p-2 hover:bg-white/10 transition-colors"
+   413→   413→   413→                        title="Copy"
+   414→   414→   414→                      >
+   415→   415→   415→                        <Copy className="h-4 w-4" style={{ color: "#D6B77A" }} />
+   416→   416→   416→                      </button>
+   417→   417→   417→                    </div>
+   418→   418→   418→                    <div className="flex items-center justify-between rounded-md bg-[#D6B77A]/10 px-3 py-2">
+   419→   419→   419→                      <div>
+   420→   420→   420→                        <p className="text-[10px] uppercase tracking-wider text-ivory/50">
+   421→   421→   421→                          Amount to Send
+   422→   422→   422→                        </p>
+   423→   423→   423→                        <p
+   424→   424→   424→                          className="font-serif text-lg font-bold"
+   425→   425→   425→                          style={{ color: "#D6B77A" }}
+   426→   426→   426→                        >
+   427→   427→   427→                          5,000 PKR
+   428→   428→   428→                        </p>
+   429→   429→   429→                      </div>
+   430→   430→   430→                    </div>
+   431→   431→   431→                  </div>
+   432→   432→   432→                </div>
+   433→   433→   433→
+   434→   434→   434→                {/* Instructions */}
+   435→   435→   435→                <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+   436→   436→   436→                  <p className="text-xs leading-relaxed text-ivory/70">
+   437→   437→   437→                    <span className="font-medium text-ivory">Instructions: </span>
+   438→   438→   438→                    {currentMethod.instructions}
+   439→   439→   439→                  </p>
+   440→   440→   440→                </div>
+   441→   441→   441→              </CardContent>
+   442→   442→   442→            </Card>
+   443→   443→   443→
+   444→   444→   444→            {/* Step 3: Upload screenshot + transaction reference */}
+   445→   445→   445→            <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
+   446→   446→   446→              <CardHeader>
+   447→   447→   447→                <CardTitle className="font-serif text-xl text-ivory">
+   448→   448→   448→                  Step 3 — Upload payment screenshot
+   449→   449→   449→                </CardTitle>
+   450→   450→   450→                <CardDescription className="text-ivory/70">
+   451→   451→   451→                  Take a screenshot of your payment confirmation and upload it here for
+   452→   452→   452→                  admin verification.
+   453→   453→   453→                </CardDescription>
+   454→   454→   454→              </CardHeader>
+   455→   455→   455→              <CardContent className="space-y-4">
+   456→   456→   456→                {/* Upload zone */}
+   457→   457→   457→                <input
+   458→   458→   458→                  ref={fileInputRef}
+   459→   459→   459→                  type="file"
+   460→   460→   460→                  accept="image/jpeg,image/png,image/webp"
+   461→   461→   461→                  className="hidden"
+   462→   462→   462→                  onChange={(e) => {
+   463→   463→   463→                    const file = e.target.files?.[0];
+   464→   464→   464→                    if (file) uploadFile(file);
+   465→   465→   465→                  }}
+   466→   466→   466→                />
+   467→   467→   467→                {receiptPath ? (
+   468→   468→   468→                  <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
+   469→   469→   469→                    <FileCheck2 className="h-6 w-6 text-emerald-400" />
+   470→   470→   470→                    <div className="flex-1">
+   471→   471→   471→                      <p className="text-sm font-medium text-ivory">
+   472→   472→   472→                        Screenshot uploaded
+   473→   473→   473→                      </p>
+   474→   474→   474→                      <p className="text-xs text-ivory/50">{receiptPath.split("/").pop()}</p>
+   475→   475→   475→                    </div>
+   476→   476→   476→                    <img
+   477→   477→   477→                      src={receiptPath}
+   478→   478→   478→                      alt="Payment screenshot"
+   479→   479→   479→                      className="h-12 w-12 rounded-md object-cover"
+   480→   480→   480→                    />
+   481→   481→   481→                    <button
+   482→   482→   482→                      onClick={() => setReceiptPath(null)}
+   483→   483→   483→                      className="rounded-md p-2 hover:bg-white/10"
+   484→   484→   484→                    >
+   485→   485→   485→                      <X className="h-4 w-4 text-ivory/60" />
+   486→   486→   486→                    </button>
+   487→   487→   487→                  </div>
+   488→   488→   488→                ) : (
+   489→   489→   489→                  <button
+   490→   490→   490→                    onClick={() => fileInputRef.current?.click()}
+   491→   491→   491→                    disabled={uploading}
+   492→   492→   492→                    className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#D6B77A]/30 bg-white/5 px-4 py-8 transition-colors hover:border-[#D6B77A]/50 hover:bg-white/10"
+   493→   493→   493→                  >
+   494→   494→   494→                    {uploading ? (
+   495→   495→   495→                      <>
+   496→   496→   496→                        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#D6B77A" }} />
+   497→   497→   497→                        <span className="text-sm text-ivory/70">Uploading…</span>
+   498→   498→   498→                      </>
+   499→   499→   499→                    ) : (
+   500→   500→   500→                      <>
+   501→   501→   501→                        <Upload className="h-6 w-6" style={{ color: "#D6B77A" }} />
+   502→   502→   502→                        <span className="text-sm text-ivory">Click to upload screenshot</span>
+   503→   503→   503→                        <span className="text-xs text-ivory/50">
+   504→   504→   504→                          JPEG, PNG, or WebP — max 5 MB
+   505→   505→   505→                        </span>
+   506→   506→   506→                      </>
+   507→   507→   507→                    )}
+   508→   508→   508→                  </button>
+   509→   509→   509→                )}
+   510→   510→   510→
+   511→   511→   511→                {/* Transaction reference */}
+   512→   512→   512→                <div className="space-y-2">
+   513→   513→   513→                  <Label className="text-ivory/90 text-sm">
+   514→   514→   514→                    Transaction Reference / ID
+   515→   515→   515→                  </Label>
+   516→   516→   516→                  <Input
+   517→   517→   517→                    value={transactionRef}
+   518→   518→   518→                    onChange={(e) => setTransactionRef(e.target.value)}
+   519→   519→   519→                    placeholder="e.g. EP-12345678 or TID-98765"
+   520→   520→   520→                    className="bg-white/5 border-[#D6B77A]/30 text-ivory placeholder:text-ivory/40"
+   521→   521→   521→                  />
+   522→   522→   522→                  <p className="text-xs text-ivory/50">
+   523→   523→   523→                    Enter the transaction ID from your payment confirmation message/SMS.
+   524→   524→   524→                  </p>
+   525→   525→   525→                </div>
+   526→   526→   526→
+   527→   527→   527→                {/* Submit */}
+   528→   528→   528→                <Button
+   529→   529→   529→                  onClick={handleSubmit}
+   530→   530→   530→                  disabled={submitting || uploading || !receiptPath || !transactionRef.trim()}
+   531→   531→   531→                  className="w-full"
+   532→   532→   532→                  style={{
+   533→   533→   533→                    background: "linear-gradient(135deg, #E8D9B5, #D6B77A, #B8964A)",
+   534→   534→   534→                    color: "#111827",
+   535→   535→   535→                  }}
+   536→   536→   536→                >
+   537→   537→   537→                  {submitting ? (
+   538→   538→   538→                    <>
+   539→   539→   539→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   540→   540→   540→                      Submitting…
+   541→   541→   541→                    </>
+   542→   542→   542→                  ) : (
+   543→   543→   543→                    <>
+   544→   544→   544→                      <ShieldCheck className="mr-2 h-4 w-4" />
+   545→   545→   545→                      Submit Payment for Verification
+   546→   546→   546→                    </>
+   547→   547→   547→                  )}
+   548→   548→   548→                </Button>
+   549→   549→   549→
+   550→   550→   550→                <Alert className="border-[#D6B77A]/20 bg-white/5">
+   551→   551→   551→                  <AlertDescription className="text-xs text-ivory/70">
+   552→   552→   552→                    Your payment screenshot and transaction reference will be reviewed by
+   553→   553→   553→                    an administrator. Once verified, your subscription will be activated
+   554→   554→   554→                    within 24 hours and you will receive a notification. Your account is
+   555→   555→   555→                    not charged automatically — payment is verified manually for your
+   556→   556→   556→                    security.
+   557→   557→   557→                  </AlertDescription>
+   558→   558→   558→                </Alert>
+   559→   559→   559→              </CardContent>
+   560→   560→   560→            </Card>
+   561→   561→   561→          </>
+   562→   562→   562→        )}
+   563→   563→   563→
+   564→   564→   564→        {/* Submitted confirmation */}
+   565→   565→   565→        {submitted && !isActive && (
+   566→   566→   566→          <Card className="glass-dark border border-emerald-500/30 shadow-lux-lg">
+   567→   567→   567→            <CardContent className="py-12 text-center">
+   568→   568→   568→              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20">
+   569→   569→   569→                <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+   570→   570→   570→              </div>
+   571→   571→   571→              <h2 className="font-serif text-xl text-ivory">
+   572→   572→   572→                Payment Submitted for Verification
+   573→   573→   573→              </h2>
+   574→   574→   574→              <p className="mt-2 max-w-md mx-auto text-sm text-ivory/70">
+   575→   575→   575→                Thank you. Your payment of 5,000 PKR has been submitted. An administrator
+   576→   576→   576→                will review your screenshot and activate your subscription within 24 hours.
+   577→   577→   577→                You will receive a notification once it's active.
+   578→   578→   578→              </p>
+   579→   579→   579→              <Button
+   580→   580→   580→                variant="outline"
+   581→   581→   581→                className="mt-6 border-[#D6B77A]/30 text-ivory hover:bg-white/10"
+   582→   582→   582→                onClick={() => setSubmitted(false)}
+   583→   583→   583→              >
+   584→   584→   584→                Submit Another Payment
+   585→   585→   585→              </Button>
+   586→   586→   586→            </CardContent>
+   587→   587→   587→          </Card>
+   588→   588→   588→        )}
+   589→   589→   589→
+   590→   590→   590→        {/* Payment history */}
+   591→   591→   591→        {payments.length > 0 && (
+   592→   592→   592→          <Card className="glass-dark border border-[#D6B77A]/25 shadow-lux-lg">
+   593→   593→   593→            <CardHeader>
+   594→   594→   594→              <CardTitle className="font-serif text-lg text-ivory">Payment History</CardTitle>
+   595→   595→   595→            </CardHeader>
+   596→   596→   596→            <CardContent>
+   597→   597→   597→              <div className="max-h-72 overflow-y-auto scrollbar-lux space-y-2">
+   598→   598→   598→                {payments.map((p) => (
+   599→   599→   599→                  <div
+   600→   600→   600→                    key={p.id}
+   601→   601→   601→                    className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3"
+   602→   602→   602→                  >
+   603→   603→   603→                    <div>
+   604→   604→   604→                      <p className="text-sm text-ivory">
+   605→   605→   605→                        {p.method.replace(/_/g, " ")} — {p.transactionRef}
+   606→   606→   606→                      </p>
+   607→   607→   607→                      <p className="text-xs text-ivory/50">
+   608→   608→   608→                        {new Date(p.createdAt).toLocaleDateString("en-PK", {
+   609→   609→   609→                          year: "numeric",
+   610→   610→   610→                          month: "short",
+   611→   611→   611→                          day: "numeric",
+   612→   612→   612→                        })}
+   613→   613→   613→                      </p>
+   614→   614→   614→                    </div>
+   615→   615→   615→                    <div className="flex items-center gap-2">
+   616→   616→   616→                      {p.receiptPath && (
+   617→   617→   617→                        <img
+   618→   618→   618→                          src={p.receiptPath}
+   619→   619→   619→                          alt="Receipt"
+   620→   620→   620→                          className="h-8 w-8 rounded object-cover"
+   621→   621→   621→                        />
+   622→   622→   622→                      )}
+   623→   623→   623→                      <span
+   624→   624→   624→                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ${
+   625→   625→   625→                          p.status === "VERIFIED"
+   626→   626→   626→                            ? "bg-emerald-500/20 text-emerald-300"
+   627→   627→   627→                            : p.status === "REJECTED"
+   628→   628→   628→                            ? "bg-red-500/20 text-red-300"
+   629→   629→   629→                            : "bg-[#D6B77A]/20 text-[#D6B77A]"
+   630→   630→   630→                        }`}
+   631→   631→   631→                      >
+   632→   632→   632→                        {p.status}
+   633→   633→   633→                      </span>
+   634→   634→   634→                    </div>
+   635→   635→   635→                  </div>
+   636→   636→   636→                ))}
+   637→   637→   637→              </div>
+   638→   638→   638→            </CardContent>
+   639→   639→   639→          </Card>
+   640→   640→   640→        )}
+   641→   641→   641→
+   642→   642→   642→        <Separator className="bg-[#D6B77A]/20" />
+   643→   643→   643→        <div className="pb-8 text-center">
+   644→   644→   644→          <p className="text-xs text-ivory/40">
+   645→   645→   645→            For payment support, contact{" "}
+   646→   646→   646→            <span className="text-[#D6B77A]">support@garminas.com</span> or open a
+   647→   647→   647→            support ticket from the Help page.
+   648→   648→   648→          </p>
+   649→   649→   649→        </div>
+   650→   650→   650→      </motion.div>
+   651→   651→   651→    </div>
+   652→   652→   652→  );
+   653→   653→   653→}
+   654→   654→   654→

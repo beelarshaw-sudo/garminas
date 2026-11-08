@@ -144,6 +144,7 @@ export type ViewKey =
   | "success-stories"
   | "help"
   | "admin"
+  | "community-verification"
   | "legal-terms"
   | "legal-privacy"
   | "legal-community"

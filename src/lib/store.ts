@@ -50,6 +50,13 @@ interface ClientSession {
   subscriptionActive?: boolean;
   subscriptionStatus?: string;
   subscriptionExpiresAt?: string | null;
+  country?: string | null;
+  nationality?: string | null;
+  currency?: string | null;
+  callingCode?: string | null;
+  region?: string | null;
+  applicationStatus?: string;
+  communityVerificationStatus?: string;
 }
 
 interface SessionState {

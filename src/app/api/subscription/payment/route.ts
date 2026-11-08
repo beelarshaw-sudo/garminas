@@ -13,6 +13,9 @@ const PaymentSchema = z.object({
   ]),
   transactionRef: z.string().min(3, "Transaction reference is required."),
   receiptPath: z.string().min(1, "Payment screenshot is required for verification."),
+  currency: z.string().optional(), // e.g. "USD", "AED"
+  amountLocal: z.number().optional(), // amount in local currency
+  exchangeRate: z.number().optional(), // PKR→currency rate at time of payment
 });
 
 /**
@@ -46,7 +49,10 @@ export async function POST(req: NextRequest) {
   const payment = await db.payment.create({
     data: {
       userId: sess.userId,
-      amount: 5000,
+      amount: 5000, // base PKR
+      amountLocal: d.amountLocal,
+      currency: d.currency,
+      exchangeRate: d.exchangeRate,
       plan: "MONTHLY",
       method: d.method,
       transactionRef: d.transactionRef,

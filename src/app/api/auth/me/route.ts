@@ -23,6 +23,13 @@ export async function GET() {
       subscriptionStatus: true,
       subscriptionExpiresAt: true,
       accountType: true,
+      country: true,
+      nationality: true,
+      currency: true,
+      callingCode: true,
+      region: true,
+      applicationStatus: true,
+      communityVerificationStatus: true,
     },
   });
   const subActive =
@@ -39,6 +46,13 @@ export async function GET() {
       subscriptionActive: !!subActive,
       subscriptionStatus: user?.subscriptionStatus ?? "NONE",
       subscriptionExpiresAt: user?.subscriptionExpiresAt,
+      country: user?.country,
+      nationality: user?.nationality,
+      currency: user?.currency,
+      callingCode: user?.callingCode,
+      region: user?.region,
+      applicationStatus: user?.applicationStatus ?? "NOT_STARTED",
+      communityVerificationStatus: user?.communityVerificationStatus ?? "NOT_SUBMITTED",
       verification: verification
         ? {
             emailVerified: verification.emailVerified || sess.emailVerified,
