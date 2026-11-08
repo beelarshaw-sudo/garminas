@@ -396,9 +396,9 @@ export function HomeView() {
                       WebkitTextFillColor: "transparent",
                     }}
                   >
-                    5,000
+                    18
                   </span>
-                  <span className="ml-2 text-lg text-muted-foreground">PKR / month</span>
+                  <span className="ml-2 text-lg text-muted-foreground">USD / month</span>
                 </div>
                 <div className="mb-6 space-y-2 text-left">
                   {[

@@ -491,7 +491,7 @@ function SubscriptionStatusCard({
                   Your subscription is not active
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Pay 5,000 PKR to contact members, send proposals, and unlock
+                  Pay $18 USD to contact members, send proposals, and unlock
                   private messaging.
                 </p>
               </>

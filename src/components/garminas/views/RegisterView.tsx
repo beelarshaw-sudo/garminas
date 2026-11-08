@@ -553,7 +553,7 @@ export default function RegisterView() {
                 <p className="text-xs text-ivory/80">
                   After verification, you'll need to activate your{" "}
                   <span className="font-medium text-[#D6B77A]">
-                    monthly subscription (5,000 PKR)
+                    monthly subscription ($18 USD)
                   </span>{" "}
                   to browse profiles and contact members.
                 </p>
@@ -1219,7 +1219,7 @@ export default function RegisterView() {
                     <div className="flex items-center gap-2 text-[#D6B77A]">
                       <CreditCard className="h-4 w-4" />
                       <span className="text-sm font-semibold">
-                        Monthly Subscription: 5,000 PKR
+                        Monthly Subscription: $18 USD
                       </span>
                     </div>
                     <p className="mt-2 text-sm text-ivory/80">
@@ -1238,7 +1238,7 @@ export default function RegisterView() {
                         className="mt-0.5 border-[#D6B77A]/60 data-[state=checked]:border-[#D6B77A] data-[state=checked]:bg-[#D6B77A] data-[state=checked]:text-[#111827]"
                       />
                       <span className="text-sm text-ivory/90">
-                        I acknowledge the monthly subscription fee of 5,000 PKR
+                        I acknowledge the monthly subscription fee of $18 USD
                         and understand I will need to submit payment after my
                         documents are verified.
                       </span>

@@ -51,7 +51,7 @@ const PAYMENT_METHODS: PaymentMethodInfo[] = [
     icon: Smartphone,
     accountName: "GarMinas Matrimonial",
     accountNumber: "0300-1234567",
-    instructions: "Open EasyPaisa App → Send Money → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    instructions: "Open EasyPaisa App → Send Money → Enter the number above → Send $18 USD → Take a screenshot of the confirmation.",
     color: "#00A651",
   },
   {
@@ -60,7 +60,7 @@ const PAYMENT_METHODS: PaymentMethodInfo[] = [
     icon: Wallet,
     accountName: "GarMinas Matrimonial",
     accountNumber: "0300-7654321",
-    instructions: "Open JazzCash App → Send Money → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    instructions: "Open JazzCash App → Send Money → Enter the number above → Send $18 USD → Take a screenshot of the confirmation.",
     color: "#ED1C24",
   },
   {
@@ -69,7 +69,7 @@ const PAYMENT_METHODS: PaymentMethodInfo[] = [
     icon: Wallet,
     accountName: "GarMinas Matrimonial",
     accountNumber: "0345-9876543",
-    instructions: "Open SadaPay App → Send → Enter the number above → Send 5,000 PKR → Take a screenshot of the confirmation.",
+    instructions: "Open SadaPay App → Send → Enter the number above → Send $18 USD → Take a screenshot of the confirmation.",
     color: "#6C5CE7",
   },
   {
@@ -78,7 +78,7 @@ const PAYMENT_METHODS: PaymentMethodInfo[] = [
     icon: Building2,
     accountName: "GarMinas Matrimonial Services",
     accountNumber: "PK36MEZN0001234567890",
-    instructions: "Transfer 5,000 PKR to the bank account above via your banking app or ATM. Save the transaction receipt.",
+    instructions: "Transfer $18 USD to the bank account above via your banking app or ATM. Save the transaction receipt.",
     color: "#2D3436",
   },
   {
@@ -159,9 +159,9 @@ export default function SubscriptionView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Multicurrency state
-  const [rates, setRates] = useState<Record<string, number>>({ PKR: 1 });
+  const [rates, setRates] = useState<Record<string, number>>({ PKR: 1, USD: 0.0036 });
   const [basePrice, setBasePrice] = useState<number>(BASE_PRICE_PKR);
-  const [currency, setCurrency] = useState<string>("PKR");
+  const [currency, setCurrency] = useState<string>("USD");
   const [ratesLoading, setRatesLoading] = useState(true);
 
   // Fetch subscription/payment status, exchange rates, and user session on mount.
@@ -197,7 +197,7 @@ export default function SubscriptionView() {
         }
         if (sessRes.ok) {
           const sessData: SessionResponse = await sessRes.json();
-          const userCurrency = sessData.session?.currency || "PKR";
+          const userCurrency = sessData.session?.currency || "USD";
           // Only adopt the user's currency if it is supported by the rates object.
           if (userCurrency && fetchedRates[userCurrency] !== undefined) {
             setCurrency(userCurrency);
