@@ -384,8 +384,8 @@ export default function ProfileEditView() {
                 <Field label="Current residence">
                   <Input value={profile.currentResidence ?? ""} onChange={(e) => set("currentResidence", e.target.value)} placeholder="e.g. Karachi, Pakistan" />
                 </Field>
-                <Field label="Connection to Gilgit-Baltistan">
-                  <Input value={profile.connectionToGB ?? ""} onChange={(e) => set("connectionToGB", e.target.value)} placeholder="e.g. Born in Hunza" />
+                <Field label="Community / Heritage Connection">
+                  <Input value={profile.connectionToGB ?? ""} onChange={(e) => set("connectionToGB", e.target.value)} placeholder="e.g. Ismaili from Pakistan, born in Hunza" />
                 </Field>
               </CardContent>
               <SaveBar onSave={saveProfile} saving={savingProfile} />

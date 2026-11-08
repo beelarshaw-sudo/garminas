@@ -18,7 +18,7 @@ const SECTIONS = [
   {
     icon: MapPin,
     title: "Why GarMinas was created",
-    body: "Across Gilgit-Baltistan and the Ismaili diaspora, families have long sought trustworthy, dignified ways to help their children find a spouse. Existing options were either informal — relying entirely on personal networks — or impersonal, exposed to scams and unsuitable introductions. GarMinas was created to fill that gap: a verified, privacy-first matrimonial platform built specifically for adult Ismailis connected to Gilgit-Baltistan, where every profile is reviewed and every introduction carries intent.",
+    body: "Across the global Ismaili community, families have long sought trustworthy, dignified ways to help their children find a spouse. Existing options were either informal — relying entirely on personal networks — or impersonal, exposed to scams and unsuitable introductions. GarMinas was created to fill that gap: a verified, privacy-first matrimonial platform built specifically for adult Ismailis worldwide, where every profile is reviewed and every introduction carries intent.",
   },
   {
     icon: ShieldCheck,
@@ -65,7 +65,7 @@ export default function AboutView() {
           </h1>
           <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
             An exclusive matrimonial community for adult Ismailis connected to
-            Gilgit-Baltistan — built on dignity, privacy and serious intention.
+            the global Ismaili community — built on dignity, privacy and serious intention.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <Button

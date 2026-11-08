@@ -64,7 +64,7 @@ export function Footer() {
                 A Connection That Leads to Forever.
               </p>
               <p className="text-xs text-white/50 leading-relaxed">
-                An exclusive matrimonial community for adult Ismailis connected to Gilgit-Baltistan.
+                A global matrimonial community for adult Ismailis worldwide.
               </p>
             </div>
             {FOOTER_LINKS.map((col) => (

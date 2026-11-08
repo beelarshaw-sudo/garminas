@@ -35,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 const FAQS = [
   {
     q: "Who is GarMinas for?",
-    a: "GarMinas is an exclusive matrimonial platform for adult Ismailis connected to Gilgit-Baltistan, including those living across the diaspora. Every member confirms, at registration, that they are 18 or older, that they are part of the Ismaili community connected to Gilgit-Baltistan, and that they intend to use the platform solely for serious matrimonial purposes.",
+    a: "GarMinas is an global matrimonial platform for adult Ismailis worldwide. Every member confirms, at registration, that they are 18 or older, that they are part of the Ismaili community, and that they intend to use the platform solely for serious matrimonial purposes.",
   },
   {
     q: "Is GarMinas a dating app?",
