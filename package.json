@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "postinstall": "node scripts/select-schema.js && prisma generate",
-    "prebuild": "node scripts/select-schema.js && prisma db push --accept-data-loss",
+    "prebuild": "node scripts/select-schema.js && (prisma db push --accept-data-loss || echo 'db push skipped — tables may already exist or DB not reachable during build')",
     "db:push": "node scripts/select-schema.js && prisma db push --accept-data-loss",
     "db:generate": "node scripts/select-schema.js && prisma generate",
     "db:migrate": "prisma migrate dev",
