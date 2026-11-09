@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // Allow Prisma to work in serverless environment
   experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
+    serverComponentsExternalPackages: ["@prisma/client", "bcryptjs", "@neondatabase/serverless", "@prisma/adapter-neon"],
   },
 };
 
