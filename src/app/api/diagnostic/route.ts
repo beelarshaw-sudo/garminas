@@ -1,76 +1,47 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 /**
  * GET /api/diagnostic
- * Diagnostic endpoint to troubleshoot Vercel deployment issues.
+ * Tests the actual database connection used by the app.
  */
 export async function GET() {
   const dbUrl = process.env.DATABASE_URL || "(not set)";
   const isPostgres = dbUrl.startsWith("postgres");
-  const isFile = dbUrl.startsWith("file:");
-  const hasSsl = dbUrl.includes("sslmode=");
   const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@");
 
   const result: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
     database: {
       url_set: !!process.env.DATABASE_URL,
       url_masked: maskedUrl,
-      type: isPostgres ? "postgresql" : isFile ? "sqlite" : "unknown",
-      has_ssl: hasSsl,
-      ssl_warning:
-        isPostgres && !hasSsl
-          ? "Your PostgreSQL URL should include ?sslmode=require — add it to the end of your Neon connection string"
-          : null,
+      type: isPostgres ? "postgresql" : "sqlite",
+      using_neon_adapter: isPostgres,
     },
   };
 
-  // Test database connection
+  // Test database connection using the actual db instance (with Neon adapter)
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient({ log: ["error"] });
-    const userCount = await prisma.user.count();
+    const userCount = await db.user.count();
     (result.database as Record<string, unknown>).connected = true;
     (result.database as Record<string, unknown>).userCount = userCount;
-    (result.database as Record<string, unknown>).tables_exist = true;
-    await prisma.$disconnect();
+    (result.database as Record<string, unknown>).message =
+      userCount === 0
+        ? "Database connected! No users yet. Visit /api/setup to create the admin account."
+        : `Database connected! ${userCount} users found.`;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     (result.database as Record<string, unknown>).connected = false;
     (result.database as Record<string, unknown>).error = errMsg;
-    (result.database as Record<string, unknown>).error_type =
-      error instanceof Error ? error.constructor.name : "Unknown";
 
-    if (
-      errMsg.includes("does not exist") ||
-      errMsg.includes("no such table") ||
-      errMsg.includes("relation")
-    ) {
-      (result.database as Record<string, unknown>).tables_exist = false;
+    if (errMsg.includes("does not exist") || errMsg.includes("relation")) {
       (result.database as Record<string, unknown>).fix =
-        "Database tables don't exist. The prebuild script should have created them. Check your Vercel build logs for 'prisma db push' errors.";
+        "Tables don't exist. The prebuild script should create them. Check Vercel build logs. You may need to run 'npx prisma db push' with your DATABASE_URL set.";
     }
-    if (
-      errMsg.includes("connect") ||
-      errMsg.includes("timeout") ||
-      errMsg.includes("ECONNREFUSED") ||
-      errMsg.includes("TLS")
-    ) {
+    if (errMsg.includes("Can't reach") || errMsg.includes("connect")) {
       (result.database as Record<string, unknown>).fix =
-        "Cannot connect to database. Make sure your Neon connection string includes ?sslmode=require at the end. Example: postgresql://user:pass@ep-xxx.neon.tech/dbname?sslmode=require";
+        "Cannot connect to database. If using Neon, make sure the connection string uses the pooled endpoint (with '-pooler' in hostname) and includes ?sslmode=require.";
     }
-  }
-
-  // Check Prisma client
-  try {
-    await import("@prisma/client");
-    result.prisma = { client_loaded: true };
-  } catch (error) {
-    result.prisma = {
-      client_loaded: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
   }
 
   return NextResponse.json(result, { status: 200 });
