@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client'
+import { Pool } from '@neondatabase/serverless'
+import { PrismaNeon } from '@prisma/adapter-neon'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -8,18 +10,13 @@ function createPrismaClient(): PrismaClient {
   const rawUrl = process.env.DATABASE_URL || 'file:./db/custom.db'
 
   if (rawUrl.startsWith('postgres')) {
-    // Parse the PostgreSQL URL manually and pass individual params to Pool
-    // The Neon Pool doesn't reliably parse connectionString, so we parse it ourselves.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Pool } = require('@neondatabase/serverless')
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaNeon } = require('@prisma/adapter-neon')
-
+    // Parse the PostgreSQL URL manually — the Neon Pool doesn't reliably
+    // parse connectionString, so we extract params individually.
     let url: URL
     try {
       url = new URL(rawUrl)
     } catch {
-      throw new Error('Invalid DATABASE_URL format')
+      throw new Error('Invalid DATABASE_URL format: ' + rawUrl.substring(0, 30))
     }
 
     const pool = new Pool({
@@ -35,6 +32,7 @@ function createPrismaClient(): PrismaClient {
     const adapter = new PrismaNeon(pool)
     return new PrismaClient({ adapter })
   } else {
+    // Standard Prisma client for SQLite (z.ai / local dev)
     return new PrismaClient({
       log: ['error', 'warn'],
     })
