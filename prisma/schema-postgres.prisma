@@ -1,0 +1,528 @@
+// GarMinas — Prisma schema (SQLite dev; portable to PostgreSQL for production)
+// Note: SQLite does not support native enums; enum-like fields are String with
+// documented allowed values. For PostgreSQL, change to native enums.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+//  Accounts & Auth
+// ─────────────────────────────────────────────
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  emailVerified       Boolean  @default(false)
+  emailVerifyToken    String?
+  emailVerifyExpires  DateTime?
+  phone               String?
+  phoneVerified       Boolean  @default(false)
+  phoneOtpHash        String?
+  phoneOtpExpires     DateTime?
+  passwordHash        String
+  passwordSalt        String
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  role                String   @default("MEMBER") // MEMBER | MODERATOR | VERIFIER | ADMIN | SUPER_ADMIN
+  status              String   @default("PENDING") // PENDING | ACTIVE | SUSPENDED | BANNED | DEACTIVATED | DELETED
+  isProfileApproved   Boolean  @default(false)
+  isHidden            Boolean  @default(false)
+  isInactivityPaused  Boolean  @default(false)
+  // Account type: INDIVIDUAL (searching for self) or PARENT (searching for child)
+  accountType         String   @default("INDIVIDUAL") // INDIVIDUAL | PARENT
+  // ── Global fields (international expansion) ──
+  country             String?  // ISO country code (e.g. "PK", "US", "GB")
+  nationality         String?  // Country of nationality
+  region              String?  // State / province / region
+  callingCode         String?  // International phone calling code (e.g. "+92")
+  currency            String?  // User's display currency (e.g. "PKR", "USD")
+  // Subscription (5000 PKR / month base price)
+  subscriptionStatus  String   @default("NONE") // NONE | PENDING | ACTIVE | EXPIRED | CANCELLED
+  subscriptionPlan    String   @default("MONTHLY") // MONTHLY
+  subscriptionAmount  Int      @default(5000) // Base PKR amount
+  subscriptionCurrency String? // Currency used for the payment
+  subscriptionAmountLocal Int? // Amount paid in local currency
+  subscriptionExchangeRate Float? // Exchange rate at time of payment
+  subscriptionStartsAt DateTime?
+  subscriptionExpiresAt DateTime?
+  subscriptionPaymentRef String? // receipt filename or transaction ID
+  // Matrimonial application status (separate from subscription)
+  applicationStatus   String   @default("NOT_STARTED") // NOT_STARTED | PENDING | APPROVED | REJECTED
+  // Ismaili community verification status
+  communityVerificationStatus String @default("NOT_SUBMITTED") // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | ADDITIONAL_INFO_REQUIRED | REJECTED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  profile             Profile?
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  reportsFiled       Report[]      @relation("ReporterReports")
+  reportsAgainst      Report[]      @relation("SubjectReports")
+  supportTickets      SupportTicket[]
+  blocksInitiated     Block[]       @relation("Blocker")
+  blocksReceived      Block[]       @relation("Blocked")
+  privacyConsents     PrivacyConsent[]
+  sessionsList        UserSession[]
+  documents           VerificationDocument[]
+  payments            Payment[]
+  communityVerification CommunityVerification?
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device       String?
+  ipAddress    String?
+  lastActive   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  Member Profile
+// ─────────────────────────────────────────────
+
+model Profile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // If this profile was created by a parent, store the parent's user ID
+  createdByParentId  String?
+  parentRelationship String? // "father", "mother", "guardian", etc.
+
+  // Personal
+  fullName           String?
+  dateOfBirth        DateTime?
+  age                Int?
+  gender             String?
+  heightCm           Int?
+  maritalStatus      String?
+  languages          String?  // JSON array
+  city               String?
+  district           String?
+  currentResidence   String?
+  connectionToGB     String?
+
+  // Education & Profession
+  education          String?
+  institution        String?
+  profession         String?
+  employmentStatus   String?
+  careerInfo         String?
+  business           String?
+
+  // Family
+  familyIntro        String?
+  fatherOccupation   String?
+  motherOccupation   String?
+  siblingCount       Int?
+  familyDistrict     String?
+  familyBackground   String?
+
+  // About me
+  aboutMe            String?
+  qualitiesValued    String?
+
+  // Photos
+  photos             String?  // JSON array
+  primaryPhoto       String?
+  photoVisibility    String   @default("APPROVED_ONLY") // PUBLIC_APPROVED | APPROVED_ONLY | AFTER_INTRODUCTION | HIDDEN
+
+  // Visibility
+  profileVisibility  String   @default("APPROVED_ONLY")
+  appearsInSearch    Boolean  @default(true)
+  onlineStatusVisible Boolean @default(true)
+  readReceiptsEnabled Boolean @default(true)
+  familyInfoVisible  Boolean  @default(true)
+
+  completionPercent  Int      @default(0)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  preferences        Preferences?
+  verification       VerificationRecord?
+  proposalsSent      Proposal[]  @relation("SenderProposals")
+  proposalsReceived  Proposal[]  @relation("ReceiverProposals")
+  interestsSent      Interest[]  @relation("SenderInterests")
+  interestsReceived  Interest[]  @relation("ReceiverInterests")
+  savedBy            SavedProfile[]
+  conversations      Conversation[]  @relation("MemberConversations")
+  familyReps         FamilyRep[]
+}
+
+model Preferences {
+  id                 String   @id @default(cuid())
+  profileId          String   @unique
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  preferredAgeMin    Int?
+  preferredAgeMax    Int?
+  preferredLocation  String?  // JSON array
+  educationPrefs     String?
+  professionPrefs    String?
+  maritalStatusPrefs String?  // JSON array
+  lifestyleExpectations String?
+  familyExpectations String?
+  personalValues     String?
+  priorities         String?  // JSON array
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  Verification
+// ─────────────────────────────────────────────
+
+model VerificationRecord {
+  id                 String   @id @default(cuid())
+  profileId          String   @unique
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  phoneVerified      Boolean  @default(false)
+  emailVerified      Boolean  @default(false)
+  identityVerified   Boolean  @default(false)
+  identityVerifiedAt DateTime?
+  identityReviewerId String?
+  communityVerified  Boolean  @default(false)
+  communityVerifiedAt DateTime?
+  communityReviewerId String?
+  communityMethod    String?
+  communityConsent   Boolean  @default(false)
+  profileApproved    Boolean  @default(false)
+  profileApprovedAt  DateTime?
+  profileReviewerId  String?
+
+  reviewerNotes      String?  // JSON array
+  status             String   @default("INITIATED") // INITIATED | IN_REVIEW | APPROVED | REJECTED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  documents          VerificationDocument[]
+}
+
+model VerificationDocument {
+  id                 String   @id @default(cuid())
+  verificationId     String?
+  verification       VerificationRecord? @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  // Direct link to the user who uploaded (for registration documents)
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Link to community verification submission
+  communityVerificationId String?
+  communityVerification CommunityVerification? @relation(fields: [communityVerificationId], references: [id], onDelete: Cascade)
+  type               String   // id_card_front | id_card_back | electricity_bill | community_photo | community_document | additional_evidence | payment_receipt | selfie
+  filePath           String   // local path or private object storage key
+  mimeType           String
+  uploadedAt         DateTime @default(now())
+  expiresAt          DateTime?
+  deletedAt          DateTime?
+  reviewedBy         String?
+  reviewStatus       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewNote         String?
+}
+
+// ─────────────────────────────────────────────
+//  Payments / Subscription
+// ─────────────────────────────────────────────
+
+model Payment {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount             Int      // Base PKR amount (always 5000)
+  amountLocal        Int?     // Amount in the user's local currency
+  currency           String?  // Currency code for the payment (e.g. "USD", "AED")
+  exchangeRate       Float?   // Exchange rate PKR→currency at time of payment
+  plan               String   @default("MONTHLY")
+  method             String   @default("EASYPAISA") // EASYPAISA | JAZZCASH | SADAPAY | BANK_TRANSFER | CREDIT_CARD
+  receiptPath        String?  // uploaded receipt image
+  transactionRef     String?  // user-entered transaction ID
+  status             String   @default("PENDING") // PENDING | VERIFIED | REJECTED
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  Ismaili Community Verification
+// ─────────────────────────────────────────────
+
+model CommunityVerification {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             String   @default("NOT_SUBMITTED") // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | ADDITIONAL_INFO_REQUIRED | REJECTED
+  // Option A: Photograph in Ismaili community setting
+  photoPath          String?  // path to uploaded community photo
+  photoDescription   String?  // applicant's description of the photo
+  // Option B: Supporting documentation
+  documentPath       String?  // path to uploaded community document
+  documentType       String?  // type of document
+  // Option C: Additional verification
+  additionalEvidencePath String? // additional photo/document
+  writtenExplanation String?  // applicant's written explanation
+  // Admin review
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  reviewNote         String?
+  additionalInfoRequested String? // admin's request for additional info
+  submittedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  documents          VerificationDocument[]
+}
+
+// ─────────────────────────────────────────────
+//  Matchmaking
+// ─────────────────────────────────────────────
+
+model Proposal {
+  id                 String   @id @default(cuid())
+  senderId           String
+  sender             Profile  @relation("SenderProposals", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId         String
+  receiver           Profile  @relation("ReceiverProposals", fields: [receiverId], references: [id], onDelete: Cascade)
+  message            String?
+  status             String   @default("SENT") // SENT | DELIVERED | VIEWED | ACCEPTED | DECLINED | INTRODUCTION_REQUESTED | FAMILY_DISCUSSION | CLOSED
+  introductionRequested Boolean @default(false)
+  familyInvolved     Boolean  @default(false)
+  withdrawnReason    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  statusHistory      String?  // JSON array
+}
+
+model Interest {
+  id                 String   @id @default(cuid())
+  senderId           String
+  sender             Profile  @relation("SenderInterests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId         String
+  receiver           Profile  @relation("ReceiverInterests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status             String   @default("pending")
+  createdAt          DateTime @default(now())
+}
+
+model SavedProfile {
+  id                 String   @id @default(cuid())
+  saverId            String
+  savedProfileId     String
+  profile            Profile  @relation(fields: [savedProfileId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+
+  @@unique([saverId, savedProfileId])
+}
+
+// ─────────────────────────────────────────────
+//  Communication
+// ─────────────────────────────────────────────
+
+model Conversation {
+  id                 String   @id @default(cuid())
+  member1Id          String
+  member2Id          String?
+  proposalId         String?
+  familyRepId        String?
+  status             String   @default("active")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members            Profile[] @relation("MemberConversations")
+  messages           Message[]
+}
+
+model Message {
+  id                 String   @id @default(cuid())
+  conversationId     String
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId           String
+  senderType         String   // member | family_rep
+  body               String
+  attachments        String?  // JSON
+  readAt             DateTime?
+  readByReceiver     Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+model FamilyRep {
+  id                 String   @id @default(cuid())
+  profileId          String
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name               String
+  relationship       String
+  email              String
+  phone              String?
+  permissions        String?  // JSON
+  authorizedProposals String?
+  invitedAt          DateTime @default(now())
+  acceptedAt         DateTime?
+  status             String   @default("invited")
+}
+
+// ─────────────────────────────────────────────
+//  Notifications, Reports, Support
+// ─────────────────────────────────────────────
+
+model Notification {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               String
+  title              String
+  body               String?
+  link               String?
+  read               Boolean  @default(false)
+  emailEnabled       Boolean  @default(true)
+  smsEnabled         Boolean  @default(false)
+  inAppEnabled       Boolean  @default(true)
+  createdAt          DateTime @default(now())
+}
+
+model Report {
+  id                 String   @id @default(cuid())
+  reporterId         String
+  reporter           User     @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  subjectId          String
+  subject            User     @relation("SubjectReports", fields: [subjectId], references: [id], onDelete: Cascade)
+  reason             String
+  details            String?
+  status             String   @default("open")
+  resolution         String?
+  resolvedById       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Block {
+  id                 String   @id @default(cuid())
+  blockerId          String
+  blocker            User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId          String
+  blocked            User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model SupportTicket {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category           String
+  subject            String
+  message            String
+  status             String   @default("open")
+  priority           String   @default("normal")
+  assignedTo         String?
+  responses          SupportTicketResponse[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SupportTicketResponse {
+  id                 String   @id @default(cuid())
+  ticketId           String
+  ticket             SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  responderId        String?
+  responderRole      String?
+  body               String
+  isInternal         Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  Admin & Audit
+// ─────────────────────────────────────────────
+
+model AdminRole {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  permissions        String?
+  canManageMembers   Boolean  @default(false)
+  canVerifyIdentity  Boolean  @default(false)
+  canVerifyCommunity Boolean  @default(false)
+  canModerate        Boolean  @default(false)
+  canViewAnalytics   Boolean  @default(false)
+  canManageAdmins    Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+model AuditLog {
+  id                 String   @id @default(cuid())
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorId            String?
+  actorRole          String?
+  action             String
+  targetType         String?
+  targetId           String?
+  metadata           String?
+  ipAddress          String?
+  createdAt          DateTime @default(now())
+}
+
+model PrivacyConsent {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentType        String
+  version            String
+  accepted           Boolean  @default(false)
+  acceptedAt         DateTime?
+  createdAt          DateTime @default(now())
+}
+
+model SuccessStory {
+  id                 String   @id @default(cuid())
+  partner1Name       String
+  partner2Name       String
+  story              String
+  photoUrl           String?
+  introductionDate   DateTime?
+  publishedAt        DateTime?
+  status             String   @default("pending")
+  consentBoth        Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+model GuidanceArticle {
+  id                 String   @id @default(cuid())
+  slug               String   @unique
+  title              String
+  category           String
+  summary            String
+  body               String
+  order              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PlatformConfig {
+  id                 String   @id @default(cuid())
+  key                String   @unique
+  value              String?
+  updatedAt          DateTime @updatedAt
+}
