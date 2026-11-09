@@ -1,6 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { Pool } from '@neondatabase/serverless'
-import { PrismaNeon } from '@prisma/adapter-neon'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -10,29 +8,30 @@ function createPrismaClient(): PrismaClient {
   const rawUrl = process.env.DATABASE_URL || 'file:./db/custom.db'
 
   if (rawUrl.startsWith('postgres')) {
-    // Parse the PostgreSQL URL manually — the Neon Pool doesn't reliably
-    // parse connectionString, so we extract params individually.
-    let url: URL
-    try {
-      url = new URL(rawUrl)
-    } catch {
-      throw new Error('Invalid DATABASE_URL format: ' + rawUrl.substring(0, 30))
+    // Clean the connection string for Neon + Vercel:
+    // 1. Remove channel_binding=require (not supported by pg library)
+    // 2. Add pgbouncer=true (required for Neon's connection pooler)
+    // 3. Add connect_timeout=15 (allow time for Neon cold starts)
+    let cleanUrl = rawUrl
+      .replace(/&?channel_binding=require/g, '')
+      .replace(/&&/g, '&')
+      .replace(/\?&/, '?')
+      .replace(/&$/, '')
+
+    if (!cleanUrl.includes('pgbouncer=')) {
+      cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'pgbouncer=true'
+    }
+    if (!cleanUrl.includes('connect_timeout=')) {
+      cleanUrl += '&connect_timeout=15'
     }
 
-    const pool = new Pool({
-      host: url.hostname,
-      port: url.port ? parseInt(url.port) : 5432,
-      database: url.pathname.slice(1),
-      user: decodeURIComponent(url.username),
-      password: decodeURIComponent(url.password),
-      ssl: true,
-      connectionTimeoutMillis: 15000,
-    })
+    // Update the env var so Prisma reads the cleaned URL
+    process.env.DATABASE_URL = cleanUrl
 
-    const adapter = new PrismaNeon(pool)
-    return new PrismaClient({ adapter })
+    return new PrismaClient({
+      log: ['error', 'warn'],
+    })
   } else {
-    // Standard Prisma client for SQLite (z.ai / local dev)
     return new PrismaClient({
       log: ['error', 'warn'],
     })
