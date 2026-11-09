@@ -1,23 +1,34 @@
 import { PrismaClient } from '@prisma/client'
-import { Pool } from '@neondatabase/serverless'
-import { PrismaNeon } from '@prisma/adapter-neon'
-
-const dbUrl = process.env.DATABASE_URL || 'file:./db/custom.db'
-const isPostgres = dbUrl.startsWith('postgres')
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
 function createPrismaClient(): PrismaClient {
-  if (isPostgres) {
+  const rawUrl = process.env.DATABASE_URL || 'file:./db/custom.db'
+
+  if (rawUrl.startsWith('postgres')) {
     // Neon serverless adapter — connects over HTTP/WebSocket instead of TCP
-    // This is required for Vercel's serverless functions which can't use
-    // direct TCP connections to external databases.
+    // Required for Vercel serverless functions which can't use direct TCP.
+
+    // Clean the connection string: remove channel_binding (not supported by pg)
+    // and ensure sslmode is present
+    let cleanUrl = rawUrl.replace(/&?channel_binding=require/g, '')
+    // Clean up any double && or trailing & left after removal
+    cleanUrl = cleanUrl.replace(/&&/g, '&').replace(/\?&/, '?').replace(/&$/, '')
+
+    // Use dynamic import to avoid issues if packages aren't available in SQLite mode
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Pool } = require('@neondatabase/serverless')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaNeon } = require('@prisma/adapter-neon')
+
     const pool = new Pool({
-      connectionString: dbUrl,
-      connectionTimeoutMillis: 15000, // Allow time for Neon cold starts
+      connectionString: cleanUrl,
+      connectionTimeoutMillis: 15000,
+      ssl: true,
     })
+
     const adapter = new PrismaNeon(pool)
     return new PrismaClient({ adapter })
   } else {
